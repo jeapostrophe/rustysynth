@@ -6,7 +6,6 @@ use crate::binary_reader::BinaryReader;
 use crate::four_cc::FourCC;
 use crate::read_counter::ReadCounter;
 use crate::MidiFileError;
-use crate::MidiFileLoopType;
 
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
@@ -33,39 +32,9 @@ impl Message {
         }
     }
 
-    pub(crate) fn common2(status: u8, data1: u8, data2: u8, loop_type: MidiFileLoopType) -> Self {
+    pub(crate) fn common2(status: u8, data1: u8, data2: u8) -> Self {
         let channel = status & 0x0F;
         let command = status & 0xF0;
-
-        if command == 0xB0 {
-            match loop_type {
-                MidiFileLoopType::RpgMaker => {
-                    if data1 == 111 {
-                        return Message::loop_start();
-                    }
-                }
-
-                MidiFileLoopType::IncredibleMachine => {
-                    if data1 == 110 {
-                        return Message::loop_start();
-                    }
-                    if data1 == 111 {
-                        return Message::loop_end();
-                    }
-                }
-
-                MidiFileLoopType::FinalFantasy => {
-                    if data1 == 116 {
-                        return Message::loop_start();
-                    }
-                    if data1 == 117 {
-                        return Message::loop_end();
-                    }
-                }
-
-                _ => (),
-            }
-        }
 
         Self {
             channel,
@@ -143,30 +112,6 @@ impl MidiFile {
     ///
     /// * `reader` - The data stream used to load the MIDI file.
     pub fn new<R: Read>(reader: &mut R) -> Result<Self, MidiFileError> {
-        MidiFile::new_with_loop_type(reader, MidiFileLoopType::LoopPoint(0))
-    }
-
-    /// Loads a MIDI file from the stream with a specified loop type.
-    ///
-    /// # Arguments
-    ///
-    /// * `reader` - The data stream used to load the MIDI file.
-    /// * `loop_type` - The type of the loop extension to be used.
-    ///
-    /// # Remarks
-    ///
-    /// `MidiFileLoopType` has the following variants:
-    /// * `LoopPoint(usize)` - Specifies the loop start point by a tick value.
-    /// * `RpgMaker` - The RPG Maker style loop.
-    ///   CC #111 will be the loop start point.
-    /// * `IncredibleMachine` - The Incredible Machine style loop.
-    ///   CC #110 and #111 will be the start and end points of the loop.
-    /// * `FinalFantasy` - The Final Fantasy style loop.
-    ///   CC #116 and #117 will be the start and end points of the loop.
-    pub fn new_with_loop_type<R: Read>(
-        reader: &mut R,
-        loop_type: MidiFileLoopType,
-    ) -> Result<Self, MidiFileError> {
         let chunk_type = BinaryReader::read_four_cc(reader)?;
         if chunk_type != b"MThd" {
             return Err(MidiFileError::InvalidChunkType {
@@ -194,31 +139,9 @@ impl MidiFile {
         let mut tick_lists: Vec<Vec<i32>> = Vec::new();
 
         for _i in 0..track_count {
-            let (message_list, tick_list) = MidiFile::read_track(reader, loop_type)?;
+            let (message_list, tick_list) = MidiFile::read_track(reader)?;
             message_lists.push(message_list);
             tick_lists.push(tick_list);
-        }
-
-        match loop_type {
-            MidiFileLoopType::LoopPoint(loop_point) if loop_point != 0 => {
-                let loop_point = loop_point as i32;
-                let tick_list = &mut tick_lists[0];
-                let message_list = &mut message_lists[0];
-
-                if loop_point <= *tick_list.last().unwrap() {
-                    for i in 0..tick_list.len() {
-                        if tick_list[i] >= loop_point {
-                            tick_list.insert(i, loop_point);
-                            message_list.insert(i, Message::loop_start());
-                            break;
-                        }
-                    }
-                } else {
-                    tick_list.push(loop_point);
-                    message_list.push(Message::loop_start());
-                }
-            }
-            _ => (),
         }
 
         let (messages, times) = MidiFile::merge_tracks(&message_lists, &tick_lists, resolution);
@@ -245,10 +168,7 @@ impl MidiFile {
         Ok((b1 << 16) | (b2 << 8) | b3)
     }
 
-    fn read_track<R: Read>(
-        reader: &mut R,
-        loop_type: MidiFileLoopType,
-    ) -> Result<(Vec<Message>, Vec<i32>), MidiFileError> {
+    fn read_track<R: Read>(reader: &mut R) -> Result<(Vec<Message>, Vec<i32>), MidiFileError> {
         let chunk_type = BinaryReader::read_four_cc(reader)?;
         if chunk_type != b"MTrk" {
             return Err(MidiFileError::InvalidChunkType {
@@ -279,7 +199,7 @@ impl MidiFile {
                     ticks.push(tick);
                 } else {
                     let data2 = BinaryReader::read_u8(reader)?;
-                    messages.push(Message::common2(last_status, first, data2, loop_type));
+                    messages.push(Message::common2(last_status, first, data2));
                     ticks.push(tick);
                 }
 
@@ -318,7 +238,7 @@ impl MidiFile {
                     } else {
                         let data1 = BinaryReader::read_u8(reader)?;
                         let data2 = BinaryReader::read_u8(reader)?;
-                        messages.push(Message::common2(first, data1, data2, loop_type));
+                        messages.push(Message::common2(first, data1, data2));
                         ticks.push(tick);
                     }
                 }
