@@ -45,18 +45,15 @@ fn flourish() {
 
     // Load the MIDI file.
     let mut mid = File::open("flourish.mid").unwrap();
-    let midi_file = Arc::new(MidiFile::new(&mut mid).unwrap());
+    let midi_file = MidiFile::new(&mut mid).unwrap();
 
     // Create the MIDI file sequencer.
     let settings = SynthesizerSettings::new(44100);
     let synthesizer = Synthesizer::new(&sound_font, &settings).unwrap();
-    let mut sequencer = MidiFileSequencer::new(synthesizer);
-
-    // Play the MIDI file.
-    sequencer.play(&midi_file);
+    let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
+    let mut sequencer = MidiFileSequencer::new(synthesizer, midi_file);
 
     // The output buffer.
-    let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
     let mut left: Vec<f32> = vec![0_f32; sample_count];
     let mut right: Vec<f32> = vec![0_f32; sample_count];
 
