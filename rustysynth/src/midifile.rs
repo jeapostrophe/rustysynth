@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use std::{collections::VecDeque, io::Read};
 
-/// Represents a standard MIDI file.
 #[derive(Debug)]
 pub struct MidiFile {
     pub(crate) events: Vec<MidiEvent>,
@@ -28,11 +27,15 @@ impl MidiFile {
             midly::Timing::Metrical(tpb) => tpb.as_int() as f64,
             midly::Timing::Timecode(..) => return Err(anyhow!("Timecode is not supported")),
         };
+        // The first track contains all of the tempo changes. These apply to the
+        // other tracks at the same absolute times. So, when we go through the
+        // first track, we record them and apply them before other events in the
+        // other tracks.
         let mut tempo_changes: Vec<TempoChange> = vec![];
         let mut all_evts = vec![];
         for track in smf.tracks {
             let mut time = 0.0;
-            let mut us_per_beat = 500_000.0;
+            let mut us_per_beat = 500_000.0; // This default is from the MIDI spec
             let mut tempo_idx = 0;
             let mut track_evts = VecDeque::new();
             for evt in track {
@@ -71,19 +74,11 @@ impl MidiFile {
 
         let mut events = vec![];
         while all_evts.iter().any(|evts| !evts.is_empty()) {
+            // Find out which track has the earliest time
             let which = all_evts
                 .iter()
                 .enumerate()
-                .map(|(i, evts)| {
-                    (
-                        i,
-                        if let Some(evt) = evts.front() {
-                            evt.time
-                        } else {
-                            f64::INFINITY
-                        },
-                    )
-                })
+                .filter_map(|(i, evts)| evts.front().map(|evt| (i, evt.time)))
                 .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
                 .map(|(i, _)| i)
                 .unwrap();
