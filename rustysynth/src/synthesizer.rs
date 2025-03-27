@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,10 +12,10 @@ use crate::soundfont::SoundFont;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice_collection::VoiceCollection;
+use midly::num::{u4, u7};
 
 /// An instance of the SoundFont synthesizer.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Synthesizer {
     pub(crate) sound_font: Arc<SoundFont>,
     pub(crate) sample_rate: i32,
@@ -61,7 +59,7 @@ impl Synthesizer {
     ) -> Result<Self, SynthesizerError> {
         settings.validate()?;
 
-        let mut preset_lookup: HashMap<i32, usize> = HashMap::new();
+        let mut preset_lookup = HashMap::new();
 
         let mut min_preset_id = i32::MAX;
         let mut default_preset: usize = 0;
@@ -84,7 +82,7 @@ impl Synthesizer {
         }
 
         let mut channels: Vec<Channel> = Vec::new();
-        for i in 0..Synthesizer::CHANNEL_COUNT {
+        for i in 0..(u4::max_value().as_int() as usize) {
             channels.push(Channel::new(i == Synthesizer::PERCUSSION_CHANNEL));
         }
 
@@ -131,43 +129,44 @@ impl Synthesizer {
     /// * `command` - The type of the message.
     /// * `data1` - The first data part of the message.
     /// * `data2` - The second data part of the message.
-    pub fn process_midi_message(&mut self, channel: i32, command: i32, data1: i32, data2: i32) {
-        if !(0 <= channel && channel < self.channels.len() as i32) {
-            return;
-        }
-
+    pub fn process_midi_message<'a>(&mut self, channel: u4, msg: midly::MidiMessage) {
+        let channel = channel.as_int() as i32;
         let channel_info = &mut self.channels[channel as usize];
 
-        match command {
-            0x80 => self.note_off(channel, data1),       // Note Off
-            0x90 => self.note_on(channel, data1, data2), // Note On
-            0xB0 => match data1 // Controller
-            {
-                0x00 => channel_info.set_bank(data2), // Bank Selection
-                0x01 => channel_info.set_modulation_coarse(data2), // Modulation Coarse
-                0x21 => channel_info.set_modulation_fine(data2), // Modulation Fine
-                0x06 => channel_info.data_entry_coarse(data2), // Data Entry Coarse
-                0x26 => channel_info.data_entry_fine(data2), // Data Entry Fine
-                0x07 => channel_info.set_volume_coarse(data2), // Channel Volume Coarse
-                0x27 => channel_info.set_volume_fine(data2), // Channel Volume Fine
-                0x0A => channel_info.set_pan_coarse(data2), // Pan Coarse
-                0x2A => channel_info.set_pan_fine(data2), // Pan Fine
-                0x0B => channel_info.set_expression_coarse(data2), // Expression Coarse
-                0x2B => channel_info.set_expression_fine(data2), // Expression Fine
-                0x40 => channel_info.set_hold_pedal(data2), // Hold Pedal
-                0x5B => channel_info.set_reverb_send(data2), // Reverb Send
-                0x5D => channel_info.set_chorus_send(data2), // Chorus Send
-                0x63 => channel_info.set_nrpn_coarse(data2), // NRPN Coarse
-                0x62 => channel_info.set_nrpn_fine(data2), // NRPN Fine
-                0x65 => channel_info.set_rpn_coarse(data2), // RPN Coarse
-                0x64 => channel_info.set_rpn_fine(data2), // RPN Fine
-                0x78 => self.note_off_all_channel(channel, true), // All Sound Off
-                0x79 => self.reset_all_controllers_channel(channel), // Reset All Controllers
-                0x7B => self.note_off_all_channel(channel, false), // All Note Off
+        use midly::MidiMessage;
+        match msg {
+            MidiMessage::NoteOff { key, .. } => self.note_off(channel, key.as_int().into()),
+            MidiMessage::NoteOn { key, vel } => {
+                self.note_on(channel, key.as_int().into(), vel.as_int().into())
+            }
+            MidiMessage::Controller { controller, value } => match controller.as_int() {
+                0x00 => channel_info.set_bank(value.as_int().into()),
+                0x01 => channel_info.set_modulation_coarse(value.as_int().into()),
+                0x21 => channel_info.set_modulation_fine(value.as_int().into()),
+                0x06 => channel_info.data_entry_coarse(value.as_int().into()),
+                0x26 => channel_info.data_entry_fine(value.as_int().into()),
+                0x07 => channel_info.set_volume_coarse(value.as_int().into()),
+                0x27 => channel_info.set_volume_fine(value.as_int().into()),
+                0x0A => channel_info.set_pan_coarse(value.as_int().into()),
+                0x2A => channel_info.set_pan_fine(value.as_int().into()),
+                0x0B => channel_info.set_expression_coarse(value.as_int().into()),
+                0x2B => channel_info.set_expression_fine(value.as_int().into()),
+                0x40 => channel_info.set_hold_pedal(value.as_int().into()),
+                0x5B => channel_info.set_reverb_send(value.as_int().into()),
+                0x5D => channel_info.set_chorus_send(value.as_int().into()),
+                0x63 => channel_info.set_nrpn_coarse(value.as_int().into()),
+                0x62 => channel_info.set_nrpn_fine(value.as_int().into()),
+                0x65 => channel_info.set_rpn_coarse(value.as_int().into()),
+                0x64 => channel_info.set_rpn_fine(value.as_int().into()),
+                0x78 => self.note_off_all_channel(channel, true),
+                0x79 => self.reset_all_controllers_channel(channel),
+                0x7B => self.note_off_all_channel(channel, false),
                 _ => (),
             },
-            0xC0 => channel_info.set_patch(data1), // Program Change
-            0xE0 => channel_info.set_pitch_bend(data1, data2), // Pitch Bend
+            MidiMessage::ProgramChange { program } => {
+                channel_info.set_patch(program.as_int().into())
+            }
+            MidiMessage::PitchBend { bend } => channel_info.set_pitch_bend(bend.0.as_int().into()),
             _ => (),
         }
     }
@@ -179,10 +178,6 @@ impl Synthesizer {
     /// * `channel` - The channel of the note.
     /// * `key` - The key of the note.
     pub fn note_off(&mut self, channel: i32, key: i32) {
-        if !(0 <= channel && channel < self.channels.len() as i32) {
-            return;
-        }
-
         for voice in self.voices.get_active_voices().iter_mut() {
             if voice.channel == channel && voice.key == key {
                 voice.end();
@@ -200,10 +195,6 @@ impl Synthesizer {
     pub fn note_on(&mut self, channel: i32, key: i32, velocity: i32) {
         if velocity == 0 {
             self.note_off(channel, key);
-            return;
-        }
-
-        if !(0 <= channel && channel < self.channels.len() as i32) {
             return;
         }
 
@@ -298,10 +289,6 @@ impl Synthesizer {
     ///
     /// * `channel` - The channel to be reset.
     pub fn reset_all_controllers_channel(&mut self, channel: i32) {
-        if !(0 <= channel && channel < self.channels.len() as i32) {
-            return;
-        }
-
         self.channels[channel as usize].reset_all_controllers();
     }
 

@@ -13,4 +13,5 @@ keywords = ["soundfont", "midi", "synthesizer", "audio", "music"]
 categories = ["multimedia::audio"]
 
 [dependencies]
+anyhow = "1"
 midly = "0.5.3"

@@ -53,7 +53,7 @@ fn flourish() {
     let mut sequencer = MidiFileSequencer::new(synthesizer);
 
     // Play the MIDI file.
-    sequencer.play(&midi_file, false);
+    sequencer.play(&midi_file);
 
     // The output buffer.
     let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
