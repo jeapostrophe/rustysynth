@@ -12,7 +12,7 @@ use crate::soundfont::SoundFont;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice_collection::VoiceCollection;
-use midly::num::{u4, u7};
+use midly::num::u4;
 
 /// An instance of the SoundFont synthesizer.
 #[derive(Debug)]
