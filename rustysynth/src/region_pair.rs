@@ -1,12 +1,9 @@
-#![allow(dead_code)]
-
 use crate::generator_type::GeneratorType;
 use crate::instrument_region::InstrumentRegion;
 use crate::loop_mode::LoopMode;
 use crate::preset_region::PresetRegion;
 use crate::soundfont_math::SoundFontMath;
 
-#[non_exhaustive]
 pub(crate) struct RegionPair<'a> {
     pub(crate) preset: &'a PresetRegion,
     pub(crate) instrument: &'a InstrumentRegion,
@@ -35,22 +32,6 @@ impl<'a> RegionPair<'a> {
 
     pub(crate) fn get_sample_end_loop(&self) -> i32 {
         self.instrument.get_sample_end_loop()
-    }
-
-    pub(crate) fn get_start_address_offset(&self) -> i32 {
-        self.instrument.get_start_address_offset()
-    }
-
-    pub(crate) fn get_end_address_offset(&self) -> i32 {
-        self.instrument.get_end_address_offset()
-    }
-
-    pub(crate) fn get_start_loop_address_offset(&self) -> i32 {
-        self.instrument.get_start_loop_address_offset()
-    }
-
-    pub(crate) fn get_end_loop_address_offset(&self) -> i32 {
-        self.instrument.get_end_loop_address_offset()
     }
 
     pub(crate) fn get_modulation_lfo_to_pitch(&self) -> i32 {

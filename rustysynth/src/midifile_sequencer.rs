@@ -5,7 +5,6 @@ use crate::midifile::{MidiEvent, MidiFile};
 use crate::synthesizer::Synthesizer;
 
 /// An instance of the MIDI file sequencer.
-#[non_exhaustive]
 pub struct MidiFileSequencer {
     synthesizer: Synthesizer,
 

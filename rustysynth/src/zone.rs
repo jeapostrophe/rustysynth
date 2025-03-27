@@ -2,7 +2,6 @@ use crate::error::SoundFontError;
 use crate::generator::Generator;
 use crate::zone_info::ZoneInfo;
 
-#[non_exhaustive]
 pub(crate) struct Zone {
     pub(crate) generators: Vec<Generator>,
 }

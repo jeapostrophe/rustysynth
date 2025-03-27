@@ -3,7 +3,6 @@ use std::io::Read;
 use crate::binary_reader::BinaryReader;
 use crate::error::SoundFontError;
 
-#[non_exhaustive]
 pub(crate) struct ZoneInfo {
     pub(crate) generator_index: i32,
     pub(crate) modulator_index: i32,

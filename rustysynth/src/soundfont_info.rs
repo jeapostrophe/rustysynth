@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 
 use crate::binary_reader::BinaryReader;
@@ -10,7 +8,6 @@ use crate::soundfont_version::SoundFontVersion;
 
 /// The information of a SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct SoundFontInfo {
     pub(crate) version: SoundFontVersion,
     pub(crate) target_sound_engine: String,

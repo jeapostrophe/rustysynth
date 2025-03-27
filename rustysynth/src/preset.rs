@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::error::SoundFontError;
 use crate::instrument::Instrument;
 use crate::preset_info::PresetInfo;
@@ -8,7 +6,6 @@ use crate::zone::Zone;
 
 /// Represents a preset in the SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Preset {
     pub(crate) name: String,
     pub(crate) patch_number: i32,

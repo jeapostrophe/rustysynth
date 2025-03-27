@@ -1,11 +1,8 @@
-#![allow(dead_code)]
-
 use crate::envelope_stage::EnvelopeStage;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::SynthesizerSettings;
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub(crate) struct VolumeEnvelope {
     sample_rate: i32,
 

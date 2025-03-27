@@ -1,11 +1,8 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 
 use crate::binary_reader::BinaryReader;
 use crate::error::SoundFontError;
 
-#[non_exhaustive]
 pub(crate) struct PresetInfo {
     pub(crate) name: String,
     pub(crate) patch_number: i32,

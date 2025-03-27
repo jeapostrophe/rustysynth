@@ -1,9 +1,6 @@
-#![allow(dead_code)]
-
 use crate::synthesizer_settings::SynthesizerSettings;
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub(crate) struct Lfo {
     sample_rate: i32,
     block_size: usize,

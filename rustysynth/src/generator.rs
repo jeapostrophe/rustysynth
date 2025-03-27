@@ -1,11 +1,8 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 
 use crate::{binary_reader::BinaryReader, error::SoundFontError};
 
 #[derive(Clone, Copy)]
-#[non_exhaustive]
 pub(crate) struct Generator {
     pub(crate) generator_type: u16,
     pub(crate) value: u16,

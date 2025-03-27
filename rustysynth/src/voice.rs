@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::f32::consts;
 
 use crate::bi_quad_filter::BiQuadFilter;
@@ -14,9 +12,7 @@ use crate::synthesizer_settings::SynthesizerSettings;
 use crate::volume_envelope::VolumeEnvelope;
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub(crate) struct Voice {
-    sample_rate: i32,
     block_size: usize,
 
     vol_env: VolumeEnvelope,
@@ -81,7 +77,6 @@ pub(crate) struct Voice {
 impl Voice {
     pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
         Self {
-            sample_rate: settings.sample_rate,
             block_size: settings.block_size,
             vol_env: VolumeEnvelope::new(settings),
             mod_env: ModulationEnvelope::new(settings),
@@ -302,7 +297,6 @@ impl Voice {
 }
 
 #[allow(unused)]
-#[non_exhaustive]
 struct VoiceState {}
 
 impl VoiceState {

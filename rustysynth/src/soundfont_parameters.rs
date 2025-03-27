@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 
 use crate::binary_reader::BinaryReader;
@@ -15,7 +13,6 @@ use crate::sample_header::SampleHeader;
 use crate::zone::Zone;
 use crate::zone_info::ZoneInfo;
 
-#[non_exhaustive]
 pub(crate) struct SoundFontParameters {
     pub(crate) sample_headers: Vec<SampleHeader>,
     pub(crate) presets: Vec<Preset>,

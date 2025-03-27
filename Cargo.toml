@@ -2,8 +2,7 @@
 
 members = [
     "workspace",
-    "rustysynth",
-    "rustysynth_test",
+    "rustysynth"
 ]
 
 resolver = "2"

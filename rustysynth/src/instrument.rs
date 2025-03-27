@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::error::SoundFontError;
 use crate::instrument_info::InstrumentInfo;
 use crate::instrument_region::InstrumentRegion;
@@ -8,7 +6,6 @@ use crate::zone::Zone;
 
 /// Represents an instrument in the SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Instrument {
     pub(crate) name: String,
     pub(crate) regions: Vec<InstrumentRegion>,

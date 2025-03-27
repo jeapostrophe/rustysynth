@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io;
 use std::io::Read;
 
@@ -7,7 +5,6 @@ use crate::binary_reader::BinaryReader;
 
 /// Reperesents the version of a SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct SoundFontVersion {
     pub(crate) major: i16,
     pub(crate) minor: i16,

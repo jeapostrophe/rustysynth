@@ -6,7 +6,6 @@ use crate::four_cc::FourCC;
 
 /// Represents an error when initializing a synthesizer.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum SynthesizerError {
     SampleRateOutOfRange(i32),
     BlockSizeOutOfRange(usize),
@@ -41,7 +40,6 @@ impl fmt::Display for SynthesizerError {
 
 /// Represents an error when loading a SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum SoundFontError {
     IoError(io::Error),
     RiffChunkNotFound,
@@ -155,7 +153,6 @@ impl From<io::Error> for SoundFontError {
 
 /// Represents an error when loading a MIDI file.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum MidiFileError {
     IoError(io::Error),
     InvalidChunkType { expected: FourCC, actual: FourCC },

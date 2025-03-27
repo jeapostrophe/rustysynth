@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::lfo::Lfo;
 use crate::modulation_envelope::ModulationEnvelope;
 use crate::oscillator::Oscillator;
@@ -7,8 +5,6 @@ use crate::region_pair::RegionPair;
 use crate::soundfont_math::SoundFontMath;
 use crate::volume_envelope::VolumeEnvelope;
 
-#[allow(unused)]
-#[non_exhaustive]
 pub(crate) struct RegionEx {}
 
 impl RegionEx {

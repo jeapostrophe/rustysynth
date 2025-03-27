@@ -1,12 +1,9 @@
-#![allow(dead_code)]
-
 use crate::channel::Channel;
 use crate::instrument_region::InstrumentRegion;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice::Voice;
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub(crate) struct VoiceCollection {
     voices: Vec<Voice>,
     pub(crate) active_voice_count: usize,

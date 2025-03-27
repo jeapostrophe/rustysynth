@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 
 use crate::binary_reader::BinaryReader;
@@ -14,7 +12,6 @@ use crate::soundfont_sampledata::SoundFontSampleData;
 
 /// Reperesents a SoundFont.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct SoundFont {
     pub(crate) info: SoundFontInfo,
     pub(crate) bits_per_sample: i32,

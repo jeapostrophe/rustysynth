@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::Read;
 use std::slice;
 
@@ -8,9 +6,7 @@ use crate::error::SoundFontError;
 use crate::four_cc::FourCC;
 use crate::read_counter::ReadCounter;
 
-#[non_exhaustive]
 pub struct SoundFontSampleData {
-    pub bits_per_sample: i32,
     pub wave_data: Vec<i16>,
 }
 
@@ -56,9 +52,6 @@ impl SoundFontSampleData {
             return Err(SoundFontError::UnsupportedSampleFormat);
         }
 
-        Ok(Self {
-            bits_per_sample: 16,
-            wave_data,
-        })
+        Ok(Self { wave_data })
     }
 }

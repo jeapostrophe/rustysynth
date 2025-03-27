@@ -1,15 +1,10 @@
-#![allow(dead_code)]
-
 use std::io;
-use std::io::ErrorKind;
 use std::io::Read;
 use std::slice;
 use std::str;
 
 use crate::four_cc::FourCC;
 
-#[allow(unused)]
-#[non_exhaustive]
 pub(crate) struct BinaryReader {}
 
 impl BinaryReader {
@@ -47,40 +42,6 @@ impl BinaryReader {
         let mut data: [u8; 4] = [0; 4];
         reader.read_exact(&mut data)?;
         Ok(u32::from_le_bytes(data))
-    }
-
-    pub(crate) fn read_i16_big_endian<R: Read>(reader: &mut R) -> Result<i16, io::Error> {
-        let mut data: [u8; 2] = [0; 2];
-        reader.read_exact(&mut data)?;
-        Ok(i16::from_be_bytes(data))
-    }
-
-    pub(crate) fn read_i32_big_endian<R: Read>(reader: &mut R) -> Result<i32, io::Error> {
-        let mut data: [u8; 4] = [0; 4];
-        reader.read_exact(&mut data)?;
-        Ok(i32::from_be_bytes(data))
-    }
-
-    pub(crate) fn read_i32_variable_length<R: Read>(reader: &mut R) -> Result<i32, io::Error> {
-        let mut acc: i32 = 0;
-        let mut count: i32 = 0;
-
-        loop {
-            let value = BinaryReader::read_u8(reader)? as i32;
-            acc = (acc << 7) | (value & 127);
-            if (value & 128) == 0 {
-                break;
-            }
-            count += 1;
-            if count == 4 {
-                return Err(io::Error::new(
-                    ErrorKind::InvalidData,
-                    "the length of the value must be equal to or less than 4",
-                ));
-            }
-        }
-
-        Ok(acc)
     }
 
     pub(crate) fn read_four_cc<R: Read>(reader: &mut R) -> Result<FourCC, io::Error> {
