@@ -44,7 +44,6 @@ mod midifile_sequencer;
 mod chorus;
 mod reverb;
 
-pub use self::error::MidiFileError;
 pub use self::error::SoundFontError;
 pub use self::error::SynthesizerError;
 pub use self::instrument::Instrument;
