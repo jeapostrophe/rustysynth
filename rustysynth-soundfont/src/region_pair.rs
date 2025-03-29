@@ -1,9 +1,9 @@
 use crate::generator_type::GeneratorType;
 use crate::instrument_region::InstrumentRegion;
-use crate::loop_mode::LoopMode;
 use crate::preset_region::PresetRegion;
-use crate::soundfont_math::SoundFontMath;
-use crate::synthesizer::Sound;
+use rustysynth::loop_mode::LoopMode;
+use rustysynth::soundfont_math::SoundFontMath;
+use rustysynth::Sound;
 
 pub struct RegionPair<'a> {
     preset: &'a PresetRegion,

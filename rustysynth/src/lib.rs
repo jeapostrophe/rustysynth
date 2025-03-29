@@ -1,28 +1,7 @@
-mod error;
-
 mod array_math;
-mod binary_reader;
-mod four_cc;
-mod read_counter;
 
-mod generator;
-mod generator_type;
-mod instrument;
-mod instrument_info;
-mod instrument_region;
-mod loop_mode;
-mod preset;
-mod preset_info;
-mod preset_region;
-mod sample_header;
-mod soundfont;
-mod soundfont_info;
-mod soundfont_math;
-mod soundfont_parameters;
-mod soundfont_sampledata;
-mod soundfont_version;
-mod zone;
-mod zone_info;
+pub mod loop_mode;
+pub mod soundfont_math;
 
 mod bi_quad_filter;
 mod channel;
@@ -31,7 +10,6 @@ mod lfo;
 mod modulation_envelope;
 mod oscillator;
 mod region_ex;
-mod region_pair;
 mod synthesizer;
 mod synthesizer_settings;
 mod voice;
@@ -46,6 +24,5 @@ mod reverb;
 
 pub use self::midifile::MidiFile;
 pub use self::midifile_sequencer::MidiFileSequencer;
-pub use self::soundfont::SoundFont;
-pub use self::synthesizer::{SoundFontProc, Synthesizer};
+pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
 pub use self::synthesizer_settings::SynthesizerSettings;

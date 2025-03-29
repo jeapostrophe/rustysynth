@@ -1,8 +1,13 @@
 [workspace]
-
 members = [
     "workspace",
-    "rustysynth"
+    "rustysynth",
+    "rustysynth-soundfont",
 ]
-
 resolver = "2"
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+anyhow = "1"

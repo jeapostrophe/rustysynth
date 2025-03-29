@@ -1,0 +1,8 @@
+[package]
+name = "rustysynth-soundfont"
+version = "1.3.5"
+edition.workspace = true
+
+[dependencies]
+rustysynth = { path = "../rustysynth" }
+anyhow.workspace = true

@@ -1,6 +1,5 @@
-use rustysynth::{
-    MidiFile, MidiFileSequencer, SoundFont, SoundFontProc, Synthesizer, SynthesizerSettings,
-};
+use rustysynth::{MidiFile, MidiFileSequencer, Synthesizer, SynthesizerSettings};
+use rustysynth_soundfont::{SoundFont, SoundFontProc};
 use std::fs::File;
 use std::io::Write;
 

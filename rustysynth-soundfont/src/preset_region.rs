@@ -1,10 +1,9 @@
 use crate::error::SoundFontError;
 use crate::generator::Generator;
 use crate::generator_type::GeneratorType;
-use crate::loop_mode::LoopMode;
-use crate::sample_header::SampleHeader;
-use crate::soundfont_math::SoundFontMath;
+use crate::instrument::Instrument;
 use crate::zone::Zone;
+use rustysynth::soundfont_math::SoundFontMath;
 
 fn set_parameter(gs: &mut [i16; GeneratorType::COUNT], generator: &Generator) {
     let index = generator.generator_type as usize;
@@ -15,47 +14,24 @@ fn set_parameter(gs: &mut [i16; GeneratorType::COUNT], generator: &Generator) {
     }
 }
 
-/// Represents an instrument region.
-/// An instrument region contains all the parameters necessary to synthesize a note.
+/// Represents a preset region.
+/// A preset region indicates how the parameters of the instrument should be modified in the preset.
 #[derive(Debug)]
-pub struct InstrumentRegion {
+pub struct PresetRegion {
     pub(crate) gs: [i16; GeneratorType::COUNT],
-    pub(crate) sample_start: i32,
-    pub(crate) sample_end: i32,
-    pub(crate) sample_start_loop: i32,
-    pub(crate) sample_end_loop: i32,
-    pub(crate) sample_sample_rate: i32,
-    pub(crate) sample_original_pitch: i32,
-    pub(crate) sample_pitch_correction: i32,
+    pub(crate) instrument: usize,
 }
 
-impl InstrumentRegion {
+impl PresetRegion {
     fn new(
-        instrument_id: usize,
+        preset_id: usize,
         global: &Zone,
         local: &Zone,
-        samples: &[SampleHeader],
+        samples: &[Instrument],
     ) -> Result<Self, SoundFontError> {
         let mut gs: [i16; GeneratorType::COUNT] = [0; GeneratorType::COUNT];
-        gs[GeneratorType::INITIAL_FILTER_CUTOFF_FREQUENCY as usize] = 13500;
-        gs[GeneratorType::DELAY_MODULATION_LFO as usize] = -12000;
-        gs[GeneratorType::DELAY_VIBRATO_LFO as usize] = -12000;
-        gs[GeneratorType::DELAY_MODULATION_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::ATTACK_MODULATION_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::HOLD_MODULATION_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::DECAY_MODULATION_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::RELEASE_MODULATION_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::DELAY_VOLUME_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::ATTACK_VOLUME_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::HOLD_VOLUME_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::DECAY_VOLUME_ENVELOPE as usize] = -12000;
-        gs[GeneratorType::RELEASE_VOLUME_ENVELOPE as usize] = -12000;
         gs[GeneratorType::KEY_RANGE as usize] = 0x7F00;
         gs[GeneratorType::VELOCITY_RANGE as usize] = 0x7F00;
-        gs[GeneratorType::KEY_NUMBER as usize] = -1;
-        gs[GeneratorType::VELOCITY as usize] = -1;
-        gs[GeneratorType::SCALE_TUNING as usize] = 100;
-        gs[GeneratorType::OVERRIDING_ROOT_KEY as usize] = -1;
 
         for generator in global.generators.iter() {
             set_parameter(&mut gs, generator);
@@ -65,48 +41,41 @@ impl InstrumentRegion {
             set_parameter(&mut gs, generator);
         }
 
-        let sample_id = gs[GeneratorType::SAMPLE_ID as usize] as usize;
-        if sample_id >= samples.len() {
-            return Err(SoundFontError::InvalidSampleId {
+        let instrument_id = gs[GeneratorType::INSTRUMENT as usize] as usize;
+        if instrument_id >= samples.len() {
+            return Err(SoundFontError::InvalidInstrumentId {
+                preset_id,
                 instrument_id,
-                sample_id,
             });
         }
-        let sample = &samples[sample_id];
 
         Ok(Self {
             gs,
-            sample_start: sample.start,
-            sample_end: sample.end,
-            sample_start_loop: sample.start_loop,
-            sample_end_loop: sample.end_loop,
-            sample_sample_rate: sample.sample_rate,
-            sample_original_pitch: sample.original_pitch as i32,
-            sample_pitch_correction: sample.pitch_correction as i32,
+            instrument: instrument_id,
         })
     }
 
     pub(crate) fn create(
-        instrument_id: usize,
+        preset_id: usize,
         zones: &[Zone],
-        samples: &[SampleHeader],
-    ) -> Result<Vec<InstrumentRegion>, SoundFontError> {
+        instruments: &[Instrument],
+    ) -> Result<Vec<PresetRegion>, SoundFontError> {
         // Is the first one the global zone?
         if zones[0].generators.is_empty()
-            || zones[0].generators.last().unwrap().generator_type != GeneratorType::SAMPLE_ID
+            || zones[0].generators.last().unwrap().generator_type != GeneratorType::INSTRUMENT
         {
             // The first one is the global zone.
             let global = &zones[0];
 
             // The global zone is regarded as the base setting of subsequent zones.
             let count = zones.len() - 1;
-            let mut regions: Vec<InstrumentRegion> = Vec::new();
+            let mut regions: Vec<PresetRegion> = Vec::new();
             for i in 0..count {
-                regions.push(InstrumentRegion::new(
-                    instrument_id,
+                regions.push(PresetRegion::new(
+                    preset_id,
                     global,
                     &zones[i + 1],
-                    samples,
+                    instruments,
                 )?);
             }
 
@@ -114,13 +83,13 @@ impl InstrumentRegion {
         } else {
             // No global zone.
             let count = zones.len();
-            let mut regions: Vec<InstrumentRegion> = Vec::new();
+            let mut regions: Vec<PresetRegion> = Vec::new();
             for zone in zones.iter().take(count) {
-                regions.push(InstrumentRegion::new(
-                    instrument_id,
+                regions.push(PresetRegion::new(
+                    preset_id,
                     &Zone::empty(),
                     zone,
-                    samples,
+                    instruments,
                 )?);
             }
 
@@ -142,42 +111,6 @@ impl InstrumentRegion {
         contains_key && contains_velocity
     }
 
-    pub fn get_sample_start(&self) -> i32 {
-        self.sample_start + self.get_start_address_offset()
-    }
-
-    pub fn get_sample_end(&self) -> i32 {
-        self.sample_end + self.get_end_address_offset()
-    }
-
-    pub fn get_sample_start_loop(&self) -> i32 {
-        self.sample_start_loop + self.get_start_loop_address_offset()
-    }
-
-    pub fn get_sample_end_loop(&self) -> i32 {
-        self.sample_end_loop + self.get_end_loop_address_offset()
-    }
-
-    pub fn get_start_address_offset(&self) -> i32 {
-        32768 * self.gs[GeneratorType::START_ADDRESS_COARSE_OFFSET as usize] as i32
-            + self.gs[GeneratorType::START_ADDRESS_OFFSET as usize] as i32
-    }
-
-    pub fn get_end_address_offset(&self) -> i32 {
-        32768 * self.gs[GeneratorType::END_ADDRESS_COARSE_OFFSET as usize] as i32
-            + self.gs[GeneratorType::END_ADDRESS_OFFSET as usize] as i32
-    }
-
-    pub fn get_start_loop_address_offset(&self) -> i32 {
-        32768 * self.gs[GeneratorType::START_LOOP_ADDRESS_COARSE_OFFSET as usize] as i32
-            + self.gs[GeneratorType::START_LOOP_ADDRESS_OFFSET as usize] as i32
-    }
-
-    pub fn get_end_loop_address_offset(&self) -> i32 {
-        32768 * self.gs[GeneratorType::END_LOOP_ADDRESS_COARSE_OFFSET as usize] as i32
-            + self.gs[GeneratorType::END_LOOP_ADDRESS_OFFSET as usize] as i32
-    }
-
     pub fn get_modulation_lfo_to_pitch(&self) -> i32 {
         self.gs[GeneratorType::MODULATION_LFO_TO_PITCH as usize] as i32
     }
@@ -191,7 +124,7 @@ impl InstrumentRegion {
     }
 
     pub fn get_initial_filter_cutoff_frequency(&self) -> f32 {
-        SoundFontMath::cents_to_hertz(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::INITIAL_FILTER_CUTOFF_FREQUENCY as usize] as f32,
         )
     }
@@ -225,47 +158,49 @@ impl InstrumentRegion {
     }
 
     pub fn get_delay_modulation_lfo(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DELAY_MODULATION_LFO as usize] as f32,
         )
     }
 
     pub fn get_frequency_modulation_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_hertz(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::FREQUENCY_MODULATION_LFO as usize] as f32,
         )
     }
 
     pub fn get_delay_vibrato_lfo(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DELAY_VIBRATO_LFO as usize] as f32,
         )
     }
 
     pub fn get_frequency_vibrato_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_hertz(self.gs[GeneratorType::FREQUENCY_VIBRATO_LFO as usize] as f32)
+        SoundFontMath::cents_to_multiplying_factor(
+            self.gs[GeneratorType::FREQUENCY_VIBRATO_LFO as usize] as f32,
+        )
     }
 
     pub fn get_delay_modulation_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DELAY_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_attack_modulation_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::ATTACK_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_hold_modulation_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::HOLD_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_decay_modulation_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DECAY_MODULATION_ENVELOPE as usize] as f32,
         )
     }
@@ -275,7 +210,7 @@ impl InstrumentRegion {
     }
 
     pub fn get_release_modulation_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::RELEASE_MODULATION_ENVELOPE as usize] as f32,
         )
     }
@@ -289,25 +224,25 @@ impl InstrumentRegion {
     }
 
     pub fn get_delay_volume_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DELAY_VOLUME_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_attack_volume_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::ATTACK_VOLUME_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_hold_volume_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::HOLD_VOLUME_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_decay_volume_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::DECAY_VOLUME_ENVELOPE as usize] as f32,
         )
     }
@@ -317,7 +252,7 @@ impl InstrumentRegion {
     }
 
     pub fn get_release_volume_envelope(&self) -> f32 {
-        SoundFontMath::timecents_to_seconds(
+        SoundFontMath::cents_to_multiplying_factor(
             self.gs[GeneratorType::RELEASE_VOLUME_ENVELOPE as usize] as f32,
         )
     }
@@ -355,30 +290,14 @@ impl InstrumentRegion {
     }
 
     pub fn get_fine_tune(&self) -> i32 {
-        self.gs[GeneratorType::FINE_TUNE as usize] as i32 + self.sample_pitch_correction
-    }
-
-    pub fn get_sample_modes(&self) -> LoopMode {
-        LoopMode::from_i16(self.gs[GeneratorType::SAMPLE_MODES as usize])
+        self.gs[GeneratorType::FINE_TUNE as usize] as i32
     }
 
     pub fn get_scale_tuning(&self) -> i32 {
         self.gs[GeneratorType::SCALE_TUNING as usize] as i32
     }
 
-    pub fn get_exclusive_class(&self) -> i32 {
-        self.gs[GeneratorType::EXCLUSIVE_CLASS as usize] as i32
-    }
-
-    pub fn get_root_key(&self) -> i32 {
-        if self.gs[GeneratorType::OVERRIDING_ROOT_KEY as usize] != -1 {
-            self.gs[GeneratorType::OVERRIDING_ROOT_KEY as usize] as i32
-        } else {
-            self.sample_original_pitch
-        }
-    }
-
-    pub fn get_sample_id(&self) -> usize {
-        self.gs[GeneratorType::SAMPLE_ID as usize] as usize
+    pub fn get_instrument_id(&self) -> usize {
+        self.instrument
     }
 }
