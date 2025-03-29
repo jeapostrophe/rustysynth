@@ -1,5 +1,3 @@
-mod array_math;
-
 pub mod loop_mode;
 pub mod soundfont_math;
 

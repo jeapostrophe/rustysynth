@@ -1,9 +1,7 @@
-use crate::array_math::ArrayMath;
 use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::loop_mode::LoopMode;
 use crate::reverb::Reverb;
-use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::{SynthesizerError, SynthesizerSettings};
 use crate::voice_collection::VoiceCollection;
 use anyhow::Result;
@@ -92,22 +90,42 @@ pub struct Synthesizer<SoundSource> {
 
 /// The percussion channel.
 pub const PERCUSSION_CHANNEL: usize = 9;
-fn write_block(
-    previous_gain: f32,
-    current_gain: f32,
-    source: &[f32],
-    destination: &mut [f32],
-    inverse_block_size: f32,
-) {
-    if SoundFontMath::max(previous_gain, current_gain) < SoundFontMath::NON_AUDIBLE {
-        return;
+
+// XXX replace these functions with some SIMD operations
+mod array_math {
+    use crate::soundfont_math::SoundFontMath;
+
+    pub fn multiply_add(a: f32, x: &[f32], destination: &mut [f32]) {
+        for (x, destination) in x.iter().zip(destination.iter_mut()) {
+            *destination += a * *x;
+        }
     }
 
-    if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
-        ArrayMath::multiply_add(current_gain, source, destination);
-    } else {
-        let step = inverse_block_size * (current_gain - previous_gain);
-        ArrayMath::multiply_add_slope(previous_gain, step, source, destination);
+    pub fn multiply_add_slope(a: f32, step: f32, x: &[f32], destination: &mut [f32]) {
+        let mut a = a;
+        for (x, destination) in x.iter().zip(destination.iter_mut()) {
+            *destination += a * *x;
+            a += step;
+        }
+    }
+
+    pub fn write_block(
+        previous_gain: f32,
+        current_gain: f32,
+        source: &[f32],
+        destination: &mut [f32],
+        inverse_block_size: f32,
+    ) {
+        if SoundFontMath::max(previous_gain, current_gain) < SoundFontMath::NON_AUDIBLE {
+            return;
+        }
+
+        if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
+            multiply_add(current_gain, source, destination);
+        } else {
+            let step = inverse_block_size * (current_gain - previous_gain);
+            multiply_add_slope(previous_gain, step, source, destination);
+        }
     }
 }
 
@@ -368,7 +386,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
         for voice in self.voices.get_active_voices().iter_mut() {
             let previous_gain_left = self.master_volume * voice.previous_mix_gain_left;
             let current_gain_left = self.master_volume * voice.current_mix_gain_left;
-            write_block(
+            array_math::write_block(
                 previous_gain_left,
                 current_gain_left,
                 &voice.block[..],
@@ -377,7 +395,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             );
             let previous_gain_right = self.master_volume * voice.previous_mix_gain_right;
             let current_gain_right = self.master_volume * voice.current_mix_gain_right;
-            write_block(
+            array_math::write_block(
                 previous_gain_right,
                 current_gain_right,
                 &voice.block[..],
@@ -397,7 +415,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             for voice in self.voices.get_active_voices().iter_mut() {
                 let previous_gain_left = voice.previous_chorus_send * voice.previous_mix_gain_left;
                 let current_gain_left = voice.current_chorus_send * voice.current_mix_gain_left;
-                write_block(
+                array_math::write_block(
                     previous_gain_left,
                     current_gain_left,
                     &voice.block[..],
@@ -407,7 +425,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 let previous_gain_right =
                     voice.previous_chorus_send * voice.previous_mix_gain_right;
                 let current_gain_right = voice.current_chorus_send * voice.current_mix_gain_right;
-                write_block(
+                array_math::write_block(
                     previous_gain_right,
                     current_gain_right,
                     &voice.block[..],
@@ -421,12 +439,12 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 chorus_output_left,
                 chorus_output_right,
             );
-            ArrayMath::multiply_add(
+            array_math::multiply_add(
                 self.master_volume,
                 chorus_output_left,
                 &mut self.block_left[..],
             );
-            ArrayMath::multiply_add(
+            array_math::multiply_add(
                 self.master_volume,
                 chorus_output_right,
                 &mut self.block_right[..],
@@ -444,7 +462,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 let current_gain = reverb.get_input_gain()
                     * voice.current_reverb_send
                     * (voice.current_mix_gain_left + voice.current_mix_gain_right);
-                write_block(
+                array_math::write_block(
                     previous_gain,
                     current_gain,
                     &voice.block[..],
@@ -454,12 +472,12 @@ impl<Source: SoundSource> Synthesizer<Source> {
             }
 
             reverb.process(reverb_input, reverb_output_left, reverb_output_right);
-            ArrayMath::multiply_add(
+            array_math::multiply_add(
                 self.master_volume,
                 reverb_output_left,
                 &mut self.block_left[..],
             );
-            ArrayMath::multiply_add(
+            array_math::multiply_add(
                 self.master_volume,
                 reverb_output_right,
                 &mut self.block_right[..],
