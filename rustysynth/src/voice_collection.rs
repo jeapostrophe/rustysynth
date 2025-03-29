@@ -1,5 +1,5 @@
 use crate::channel::Channel;
-use crate::instrument_region::InstrumentRegion;
+use crate::synthesizer::Sound;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice::Voice;
 
@@ -22,11 +22,7 @@ impl VoiceCollection {
         }
     }
 
-    pub(crate) fn request_new(
-        &mut self,
-        region: &InstrumentRegion,
-        channel: i32,
-    ) -> Option<&mut Voice> {
+    pub(crate) fn request_new<S: Sound>(&mut self, region: &S, channel: i32) -> Option<&mut Voice> {
         // If an exclusive class is assigned to the region, find a voice with the same class.
         // If found, reuse it to avoid playing multiple voices with the same class at a time.
         let exclusive_class = region.get_exclusive_class();

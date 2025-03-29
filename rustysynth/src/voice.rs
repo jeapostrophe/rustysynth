@@ -6,8 +6,8 @@ use crate::lfo::Lfo;
 use crate::modulation_envelope::ModulationEnvelope;
 use crate::oscillator::Oscillator;
 use crate::region_ex::RegionEx;
-use crate::region_pair::RegionPair;
 use crate::soundfont_math::SoundFontMath;
+use crate::synthesizer::Sound;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::volume_envelope::VolumeEnvelope;
 
@@ -118,7 +118,7 @@ impl Voice {
         }
     }
 
-    pub(crate) fn start(&mut self, region: &RegionPair, channel: i32, key: i32, velocity: i32) {
+    pub(crate) fn start<S: Sound>(&mut self, region: &S, channel: i32, key: i32, velocity: i32) {
         self.exclusive_class = region.get_exclusive_class();
         self.channel = channel;
         self.key = key;

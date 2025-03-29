@@ -2,6 +2,7 @@ use crate::array_math::ArrayMath;
 use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::error::SynthesizerError;
+use crate::loop_mode::LoopMode;
 use crate::region_pair::RegionPair;
 use crate::reverb::Reverb;
 use crate::soundfont::SoundFont;
@@ -13,6 +14,52 @@ use midly::num::u4;
 use std::cmp;
 use std::collections::HashMap;
 
+pub trait Sound {
+    fn sample_sample_rate(&self) -> i32;
+    fn get_sample_start(&self) -> i32;
+    fn get_sample_end(&self) -> i32;
+    fn get_sample_start_loop(&self) -> i32;
+    fn get_sample_end_loop(&self) -> i32;
+    fn get_modulation_lfo_to_pitch(&self) -> i32;
+    fn get_vibrato_lfo_to_pitch(&self) -> i32;
+    fn get_modulation_envelope_to_pitch(&self) -> i32;
+    fn get_initial_filter_cutoff_frequency(&self) -> f32;
+    fn get_initial_filter_q(&self) -> f32;
+    fn get_modulation_lfo_to_filter_cutoff_frequency(&self) -> i32;
+    fn get_modulation_envelope_to_filter_cutoff_frequency(&self) -> i32;
+    fn get_modulation_lfo_to_volume(&self) -> f32;
+    fn get_chorus_effects_send(&self) -> f32;
+    fn get_reverb_effects_send(&self) -> f32;
+    fn get_pan(&self) -> f32;
+    fn get_delay_modulation_lfo(&self) -> f32;
+    fn get_frequency_modulation_lfo(&self) -> f32;
+    fn get_delay_vibrato_lfo(&self) -> f32;
+    fn get_frequency_vibrato_lfo(&self) -> f32;
+    fn get_delay_modulation_envelope(&self) -> f32;
+    fn get_attack_modulation_envelope(&self) -> f32;
+    fn get_hold_modulation_envelope(&self) -> f32;
+    fn get_decay_modulation_envelope(&self) -> f32;
+    fn get_sustain_modulation_envelope(&self) -> f32;
+    fn get_release_modulation_envelope(&self) -> f32;
+    fn get_key_number_to_modulation_envelope_hold(&self) -> i32;
+    fn get_key_number_to_modulation_envelope_decay(&self) -> i32;
+    fn get_delay_volume_envelope(&self) -> f32;
+    fn get_attack_volume_envelope(&self) -> f32;
+    fn get_hold_volume_envelope(&self) -> f32;
+    fn get_decay_volume_envelope(&self) -> f32;
+    fn get_sustain_volume_envelope(&self) -> f32;
+    fn get_release_volume_envelope(&self) -> f32;
+    fn get_key_number_to_volume_envelope_hold(&self) -> i32;
+    fn get_key_number_to_volume_envelope_decay(&self) -> i32;
+    fn get_initial_attenuation(&self) -> f32;
+    fn get_coarse_tune(&self) -> i32;
+    fn get_fine_tune(&self) -> i32;
+    fn get_sample_modes(&self) -> LoopMode;
+    fn get_scale_tuning(&self) -> i32;
+    fn get_exclusive_class(&self) -> i32;
+    fn get_root_key(&self) -> i32;
+}
+
 pub trait SoundSource {
     fn get_regions(
         &self,
@@ -20,7 +67,7 @@ pub trait SoundSource {
         patch_id: i32,
         key: i32,
         velocity: i32,
-    ) -> Result<RegionPair>;
+    ) -> Result<impl Sound>;
     fn wave_data(&self) -> &Vec<i16>;
 }
 
@@ -72,6 +119,7 @@ impl SoundSource for SoundFontProc {
     fn wave_data(&self) -> &Vec<i16> {
         &self.sound_font.wave_data
     }
+    #[allow(refining_impl_trait)]
     fn get_regions(
         &self,
         bank_id: i32,
@@ -124,7 +172,6 @@ pub struct Synthesizer<SoundSource> {
     pub(crate) sound_font: SoundSource,
     pub(crate) sample_rate: i32,
     pub(crate) block_size: usize,
-    pub(crate) maximum_polyphony: usize,
 
     channels: Vec<Channel>,
 
@@ -142,8 +189,6 @@ pub struct Synthesizer<SoundSource> {
     effects: Option<Effects>,
 }
 
-/// The number of channels.
-pub const CHANNEL_COUNT: usize = 16;
 /// The percussion channel.
 pub const PERCUSSION_CHANNEL: usize = 9;
 fn write_block(
@@ -208,7 +253,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
             sound_font,
             sample_rate: settings.sample_rate,
             block_size: settings.block_size,
-            maximum_polyphony: settings.maximum_polyphony,
             channels,
             voices,
             block_left,
@@ -305,7 +349,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             key,
             velocity,
         ) {
-            if let Some(value) = self.voices.request_new(region_pair.instrument, channel) {
+            if let Some(value) = self.voices.request_new(&region_pair, channel) {
                 value.start(&region_pair, channel, key, velocity)
             }
         }

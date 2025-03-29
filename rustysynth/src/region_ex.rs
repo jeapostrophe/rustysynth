@@ -1,15 +1,15 @@
 use crate::lfo::Lfo;
 use crate::modulation_envelope::ModulationEnvelope;
 use crate::oscillator::Oscillator;
-use crate::region_pair::RegionPair;
 use crate::soundfont_math::SoundFontMath;
+use crate::synthesizer::Sound;
 use crate::volume_envelope::VolumeEnvelope;
 
 pub(crate) struct RegionEx {}
 
 impl RegionEx {
-    pub(crate) fn start_oscillator(oscillator: &mut Oscillator, region: &RegionPair) {
-        let sample_rate = region.instrument.sample_sample_rate;
+    pub(crate) fn start_oscillator<S: Sound>(oscillator: &mut Oscillator, region: &S) {
+        let sample_rate = region.sample_sample_rate();
         let loop_mode = region.get_sample_modes();
         let start = region.get_sample_start();
         let end = region.get_sample_end();
@@ -34,9 +34,9 @@ impl RegionEx {
         );
     }
 
-    pub(crate) fn start_volume_envelope(
+    pub(crate) fn start_volume_envelope<S: Sound>(
         envelope: &mut VolumeEnvelope,
-        region: &RegionPair,
+        region: &S,
         key: i32,
         _velocity: i32,
     ) {
@@ -60,9 +60,9 @@ impl RegionEx {
         envelope.start(delay, attack, hold, decay, sustain, release);
     }
 
-    pub(crate) fn start_modulation_envelope(
+    pub(crate) fn start_modulation_envelope<S: Sound>(
         envelope: &mut ModulationEnvelope,
-        region: &RegionPair,
+        region: &S,
         key: i32,
         velocity: i32,
     ) {
@@ -86,14 +86,14 @@ impl RegionEx {
         envelope.start(delay, attack, hold, decay, sustain, release);
     }
 
-    pub(crate) fn start_vibrato(lfo: &mut Lfo, region: &RegionPair, _key: i32, _velocity: i32) {
+    pub(crate) fn start_vibrato<S: Sound>(lfo: &mut Lfo, region: &S, _key: i32, _velocity: i32) {
         lfo.start(
             region.get_delay_vibrato_lfo(),
             region.get_frequency_vibrato_lfo(),
         );
     }
 
-    pub(crate) fn start_modulation(lfo: &mut Lfo, region: &RegionPair, _key: i32, _velocity: i32) {
+    pub(crate) fn start_modulation<S: Sound>(lfo: &mut Lfo, region: &S, _key: i32, _velocity: i32) {
         lfo.start(
             region.get_delay_modulation_lfo(),
             region.get_frequency_modulation_lfo(),
