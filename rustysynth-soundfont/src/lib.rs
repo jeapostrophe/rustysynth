@@ -108,6 +108,14 @@ impl SoundSource for SoundFontProc {
                 for instrument_region in instrument.regions.iter() {
                     if instrument_region.contains(key, velocity) {
                         let region_pair = RegionPair::new(preset_region, instrument_region);
+                        // XXX In the original implementation, at this point, a
+                        // voice would start, which means that one "note_on"
+                        // could result in many voices if the key/vel pair were
+                        // in multiple preset regions.
+                        //
+                        // This could be supported by changing the interface to
+                        // return a Vec<Sound> and then the caller would iterate
+                        // through them and start all as appropriate.
                         return Ok(region_pair);
                     }
                 }
