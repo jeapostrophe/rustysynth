@@ -1,8 +1,6 @@
-use rustysynth::MidiFile;
-use rustysynth::MidiFileSequencer;
-use rustysynth::SoundFont;
-use rustysynth::Synthesizer;
-use rustysynth::SynthesizerSettings;
+use rustysynth::{
+    MidiFile, MidiFileSequencer, SoundFont, SoundFontProc, Synthesizer, SynthesizerSettings,
+};
 use std::fs::File;
 use std::io::Write;
 
@@ -18,7 +16,8 @@ fn simple_chord() {
 
     // Create the synthesizer.
     let settings = SynthesizerSettings::new(44100);
-    let mut synthesizer = Synthesizer::new(sound_font, &settings).unwrap();
+    let mut synthesizer: Synthesizer<SoundFontProc> =
+        Synthesizer::new(sound_font, &settings).unwrap();
 
     // Play some notes (middle C, E, G).
     synthesizer.note_on(0, 60, 100);
@@ -48,7 +47,7 @@ fn flourish() {
 
     // Create the MIDI file sequencer.
     let settings = SynthesizerSettings::new(44100);
-    let synthesizer = Synthesizer::new(sound_font, &settings).unwrap();
+    let synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font, &settings).unwrap();
     let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
     let mut sequencer = MidiFileSequencer::new(synthesizer, midi_file);
 

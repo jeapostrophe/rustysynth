@@ -1,6 +1,3 @@
-use std::cmp;
-use std::collections::HashMap;
-
 use crate::array_math::ArrayMath;
 use crate::channel::Channel;
 use crate::chorus::Chorus;
@@ -11,53 +8,30 @@ use crate::soundfont::SoundFont;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice_collection::VoiceCollection;
+use anyhow::{anyhow, Result};
 use midly::num::u4;
+use std::cmp;
+use std::collections::HashMap;
 
-/// An instance of the SoundFont synthesizer.
-#[derive(Debug)]
-pub struct Synthesizer {
-    pub(crate) sound_font: SoundFont,
-    pub(crate) sample_rate: i32,
-    pub(crate) block_size: usize,
-    pub(crate) maximum_polyphony: usize,
-
-    preset_lookup: HashMap<i32, usize>,
-    default_preset: usize,
-
-    channels: Vec<Channel>,
-
-    voices: VoiceCollection,
-
-    block_left: Vec<f32>,
-    block_right: Vec<f32>,
-
-    inverse_block_size: f32,
-
-    block_read: usize,
-
-    master_volume: f32,
-
-    effects: Option<Effects>,
+pub trait SoundSource {
+    fn get_regions(
+        &self,
+        bank_id: i32,
+        patch_id: i32,
+        key: i32,
+        velocity: i32,
+    ) -> Result<RegionPair>;
+    fn wave_data(&self) -> &Vec<i16>;
 }
 
-impl Synthesizer {
-    /// The number of channels.
-    pub const CHANNEL_COUNT: usize = 16;
-    /// The percussion channel.
-    pub const PERCUSSION_CHANNEL: usize = 9;
+pub struct SoundFontProc {
+    sound_font: SoundFont,
+    preset_lookup: HashMap<i32, usize>,
+    default_preset: usize,
+}
 
-    /// Initializes a new synthesizer using a specified SoundFont and settings.
-    ///
-    /// # Arguments
-    ///
-    /// * `sound_font` - The SoundFont instance.
-    /// * `settings` - The settings for synthesis.
-    pub fn new(
-        sound_font: SoundFont,
-        settings: &SynthesizerSettings,
-    ) -> Result<Self, SynthesizerError> {
-        settings.validate()?;
-
+impl SoundFontProc {
+    pub fn new(sound_font: SoundFont) -> Self {
         let mut preset_lookup = HashMap::new();
 
         let mut min_preset_id = i32::MAX;
@@ -80,9 +54,137 @@ impl Synthesizer {
             }
         }
 
+        Self {
+            sound_font,
+            preset_lookup,
+            default_preset,
+        }
+    }
+}
+
+impl From<SoundFont> for SoundFontProc {
+    fn from(sound_font: SoundFont) -> Self {
+        Self::new(sound_font)
+    }
+}
+
+impl SoundSource for SoundFontProc {
+    fn wave_data(&self) -> &Vec<i16> {
+        &self.sound_font.wave_data
+    }
+    fn get_regions(
+        &self,
+        bank_id: i32,
+        patch_id: i32,
+        key: i32,
+        velocity: i32,
+    ) -> Result<RegionPair> {
+        let preset_id = (bank_id << 16) | patch_id;
+        let mut preset = self.default_preset;
+        match self.preset_lookup.get(&preset_id) {
+            Some(value) => preset = *value,
+            None => {
+                // Try fallback to the GM sound set.
+                // Normally, the given patch number + the bank number 0 will work.
+                // For drums (bank number >= 128), it seems to be better to select the standard set (128:0).
+                let gm_preset_id = if bank_id < 128 { patch_id } else { 128 << 16 };
+
+                // If no corresponding preset was found. Use the default one...
+                if let Some(value) = self.preset_lookup.get(&gm_preset_id) {
+                    preset = *value
+                }
+            }
+        }
+
+        let preset = &self.sound_font.presets[preset];
+        for preset_region in preset.regions.iter() {
+            if preset_region.contains(key, velocity) {
+                let instrument = &self.sound_font.instruments[preset_region.instrument];
+                for instrument_region in instrument.regions.iter() {
+                    if instrument_region.contains(key, velocity) {
+                        let region_pair = RegionPair::new(preset_region, instrument_region);
+                        return Ok(region_pair);
+                    }
+                }
+            }
+        }
+        Err(anyhow!(
+            "No regions found for bank_id: {}, patch_id: {}, key: {}, velocity: {}",
+            bank_id,
+            patch_id,
+            key,
+            velocity
+        ))
+    }
+}
+
+/// An instance of the SoundFont synthesizer.
+#[derive(Debug)]
+pub struct Synthesizer<SoundSource> {
+    pub(crate) sound_font: SoundSource,
+    pub(crate) sample_rate: i32,
+    pub(crate) block_size: usize,
+    pub(crate) maximum_polyphony: usize,
+
+    channels: Vec<Channel>,
+
+    voices: VoiceCollection,
+
+    block_left: Vec<f32>,
+    block_right: Vec<f32>,
+
+    inverse_block_size: f32,
+
+    block_read: usize,
+
+    master_volume: f32,
+
+    effects: Option<Effects>,
+}
+
+/// The number of channels.
+pub const CHANNEL_COUNT: usize = 16;
+/// The percussion channel.
+pub const PERCUSSION_CHANNEL: usize = 9;
+fn write_block(
+    previous_gain: f32,
+    current_gain: f32,
+    source: &[f32],
+    destination: &mut [f32],
+    inverse_block_size: f32,
+) {
+    if SoundFontMath::max(previous_gain, current_gain) < SoundFontMath::NON_AUDIBLE {
+        return;
+    }
+
+    if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
+        ArrayMath::multiply_add(current_gain, source, destination);
+    } else {
+        let step = inverse_block_size * (current_gain - previous_gain);
+        ArrayMath::multiply_add_slope(previous_gain, step, source, destination);
+    }
+}
+
+impl<Source: SoundSource> Synthesizer<Source> {
+    /// Initializes a new synthesizer using a specified SoundFont and settings.
+    ///
+    /// # Arguments
+    ///
+    /// * `sound_font` - The SoundFont instance.
+    /// * `settings` - The settings for synthesis.
+    pub fn new<S>(
+        sound_font_pre: S,
+        settings: &SynthesizerSettings,
+    ) -> Result<Self, SynthesizerError>
+    where
+        Source: From<S>,
+    {
+        let sound_font = sound_font_pre.into();
+        settings.validate()?;
+
         let mut channels: Vec<Channel> = Vec::new();
         for i in 0..(u4::max_value().as_int() as usize) {
-            channels.push(Channel::new(i == Synthesizer::PERCUSSION_CHANNEL));
+            channels.push(Channel::new(i == PERCUSSION_CHANNEL));
         }
 
         let voices = VoiceCollection::new(settings);
@@ -107,8 +209,6 @@ impl Synthesizer {
             sample_rate: settings.sample_rate,
             block_size: settings.block_size,
             maximum_polyphony: settings.maximum_polyphony,
-            preset_lookup,
-            default_preset,
             channels,
             voices,
             block_left,
@@ -199,41 +299,14 @@ impl Synthesizer {
 
         let channel_info = &self.channels[channel as usize];
 
-        let preset_id = (channel_info.get_bank_number() << 16) | channel_info.get_patch_number();
-
-        let mut preset = self.default_preset;
-        match self.preset_lookup.get(&preset_id) {
-            Some(value) => preset = *value,
-            None => {
-                // Try fallback to the GM sound set.
-                // Normally, the given patch number + the bank number 0 will work.
-                // For drums (bank number >= 128), it seems to be better to select the standard set (128:0).
-                let gm_preset_id = if channel_info.get_bank_number() < 128 {
-                    channel_info.get_patch_number()
-                } else {
-                    128 << 16
-                };
-
-                // If no corresponding preset was found. Use the default one...
-                if let Some(value) = self.preset_lookup.get(&gm_preset_id) {
-                    preset = *value
-                }
-            }
-        }
-
-        let preset = &self.sound_font.presets[preset];
-        for preset_region in preset.regions.iter() {
-            if preset_region.contains(key, velocity) {
-                let instrument = &self.sound_font.instruments[preset_region.instrument];
-                for instrument_region in instrument.regions.iter() {
-                    if instrument_region.contains(key, velocity) {
-                        let region_pair = RegionPair::new(preset_region, instrument_region);
-
-                        if let Some(value) = self.voices.request_new(instrument_region, channel) {
-                            value.start(&region_pair, channel, key, velocity)
-                        }
-                    }
-                }
+        if let Ok(region_pair) = self.sound_font.get_regions(
+            channel_info.get_bank_number(),
+            channel_info.get_patch_number(),
+            key,
+            velocity,
+        ) {
+            if let Some(value) = self.voices.request_new(region_pair.instrument, channel) {
+                value.start(&region_pair, channel, key, velocity)
             }
         }
     }
@@ -343,14 +416,14 @@ impl Synthesizer {
 
     fn render_block(&mut self) {
         self.voices
-            .process(&self.sound_font.wave_data, &self.channels);
+            .process(self.sound_font.wave_data(), &self.channels);
 
         self.block_left.fill(0_f32);
         self.block_right.fill(0_f32);
         for voice in self.voices.get_active_voices().iter_mut() {
             let previous_gain_left = self.master_volume * voice.previous_mix_gain_left;
             let current_gain_left = self.master_volume * voice.current_mix_gain_left;
-            Synthesizer::write_block(
+            write_block(
                 previous_gain_left,
                 current_gain_left,
                 &voice.block[..],
@@ -359,7 +432,7 @@ impl Synthesizer {
             );
             let previous_gain_right = self.master_volume * voice.previous_mix_gain_right;
             let current_gain_right = self.master_volume * voice.current_mix_gain_right;
-            Synthesizer::write_block(
+            write_block(
                 previous_gain_right,
                 current_gain_right,
                 &voice.block[..],
@@ -379,7 +452,7 @@ impl Synthesizer {
             for voice in self.voices.get_active_voices().iter_mut() {
                 let previous_gain_left = voice.previous_chorus_send * voice.previous_mix_gain_left;
                 let current_gain_left = voice.current_chorus_send * voice.current_mix_gain_left;
-                Synthesizer::write_block(
+                write_block(
                     previous_gain_left,
                     current_gain_left,
                     &voice.block[..],
@@ -389,7 +462,7 @@ impl Synthesizer {
                 let previous_gain_right =
                     voice.previous_chorus_send * voice.previous_mix_gain_right;
                 let current_gain_right = voice.current_chorus_send * voice.current_mix_gain_right;
-                Synthesizer::write_block(
+                write_block(
                     previous_gain_right,
                     current_gain_right,
                     &voice.block[..],
@@ -426,7 +499,7 @@ impl Synthesizer {
                 let current_gain = reverb.get_input_gain()
                     * voice.current_reverb_send
                     * (voice.current_mix_gain_left + voice.current_mix_gain_right);
-                Synthesizer::write_block(
+                write_block(
                     previous_gain,
                     current_gain,
                     &voice.block[..],
@@ -447,64 +520,6 @@ impl Synthesizer {
                 &mut self.block_right[..],
             );
         }
-    }
-
-    fn write_block(
-        previous_gain: f32,
-        current_gain: f32,
-        source: &[f32],
-        destination: &mut [f32],
-        inverse_block_size: f32,
-    ) {
-        if SoundFontMath::max(previous_gain, current_gain) < SoundFontMath::NON_AUDIBLE {
-            return;
-        }
-
-        if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
-            ArrayMath::multiply_add(current_gain, source, destination);
-        } else {
-            let step = inverse_block_size * (current_gain - previous_gain);
-            ArrayMath::multiply_add_slope(previous_gain, step, source, destination);
-        }
-    }
-
-    /// Gets the SoundFont used as the audio source.
-    pub fn get_sound_font(&self) -> &SoundFont {
-        &self.sound_font
-    }
-
-    /// Gets the sample rate for synthesis.
-    pub fn get_sample_rate(&self) -> i32 {
-        self.sample_rate
-    }
-
-    /// Gets the block size for rendering waveform.
-    pub fn get_block_size(&self) -> usize {
-        self.block_size
-    }
-
-    /// Gets the number of maximum polyphony.
-    pub fn get_maximum_polyphony(&self) -> usize {
-        self.maximum_polyphony
-    }
-
-    /// Gets the value indicating whether reverb and chorus are enabled.
-    pub fn get_enable_reverb_and_chorus(&self) -> bool {
-        self.effects.is_some()
-    }
-
-    /// Gets the master volume.
-    pub fn get_master_volume(&self) -> f32 {
-        self.master_volume
-    }
-
-    /// Sets the master volume.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The new value of the master volume.
-    pub fn set_master_volume(&mut self, value: f32) {
-        self.master_volume = value;
     }
 }
 

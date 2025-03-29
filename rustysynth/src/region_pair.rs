@@ -4,7 +4,7 @@ use crate::loop_mode::LoopMode;
 use crate::preset_region::PresetRegion;
 use crate::soundfont_math::SoundFontMath;
 
-pub(crate) struct RegionPair<'a> {
+pub struct RegionPair<'a> {
     pub(crate) preset: &'a PresetRegion,
     pub(crate) instrument: &'a InstrumentRegion,
 }

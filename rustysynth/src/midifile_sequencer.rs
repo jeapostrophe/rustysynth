@@ -1,10 +1,10 @@
 use crate::midifile::{MidiEvent, MidiFile};
-use crate::synthesizer::Synthesizer;
+use crate::synthesizer::{SoundSource, Synthesizer};
 use std::cmp;
 
 /// An instance of the MIDI file sequencer.
-pub struct MidiFileSequencer {
-    synthesizer: Synthesizer,
+pub struct MidiFileSequencer<Source> {
+    synthesizer: Synthesizer<Source>,
 
     midi_file: MidiFile,
 
@@ -14,8 +14,8 @@ pub struct MidiFileSequencer {
     msg_index: usize,
 }
 
-impl MidiFileSequencer {
-    pub fn new(mut synthesizer: Synthesizer, midi_file: MidiFile) -> Self {
+impl<Source: SoundSource> MidiFileSequencer<Source> {
+    pub fn new(mut synthesizer: Synthesizer<Source>, midi_file: MidiFile) -> Self {
         synthesizer.reset();
         let block_wrote = synthesizer.block_size;
         Self {

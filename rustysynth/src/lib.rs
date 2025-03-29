@@ -47,5 +47,5 @@ mod reverb;
 pub use self::midifile::MidiFile;
 pub use self::midifile_sequencer::MidiFileSequencer;
 pub use self::soundfont::SoundFont;
-pub use self::synthesizer::Synthesizer;
+pub use self::synthesizer::{SoundFontProc, Synthesizer};
 pub use self::synthesizer_settings::SynthesizerSettings;
