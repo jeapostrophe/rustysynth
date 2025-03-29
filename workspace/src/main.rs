@@ -5,7 +5,6 @@ use rustysynth::Synthesizer;
 use rustysynth::SynthesizerSettings;
 use std::fs::File;
 use std::io::Write;
-use std::sync::Arc;
 
 fn main() {
     simple_chord();
@@ -15,11 +14,11 @@ fn main() {
 fn simple_chord() {
     // Load the SoundFont.
     let mut sf2 = File::open("TimGM6mb.sf2").unwrap();
-    let sound_font = Arc::new(SoundFont::new(&mut sf2).unwrap());
+    let sound_font = SoundFont::new(&mut sf2).unwrap();
 
     // Create the synthesizer.
     let settings = SynthesizerSettings::new(44100);
-    let mut synthesizer = Synthesizer::new(&sound_font, &settings).unwrap();
+    let mut synthesizer = Synthesizer::new(sound_font, &settings).unwrap();
 
     // Play some notes (middle C, E, G).
     synthesizer.note_on(0, 60, 100);
@@ -41,7 +40,7 @@ fn simple_chord() {
 fn flourish() {
     // Load the SoundFont.
     let mut sf2 = File::open("TimGM6mb.sf2").unwrap();
-    let sound_font = Arc::new(SoundFont::new(&mut sf2).unwrap());
+    let sound_font = SoundFont::new(&mut sf2).unwrap();
 
     // Load the MIDI file.
     let mut mid = File::open("flourish.mid").unwrap();
@@ -49,7 +48,7 @@ fn flourish() {
 
     // Create the MIDI file sequencer.
     let settings = SynthesizerSettings::new(44100);
-    let synthesizer = Synthesizer::new(&sound_font, &settings).unwrap();
+    let synthesizer = Synthesizer::new(sound_font, &settings).unwrap();
     let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
     let mut sequencer = MidiFileSequencer::new(synthesizer, midi_file);
 
