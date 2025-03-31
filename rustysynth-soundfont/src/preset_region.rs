@@ -3,7 +3,7 @@ use crate::generator::Generator;
 use crate::generator_type::GeneratorType;
 use crate::instrument::Instrument;
 use crate::zone::Zone;
-use rustysynth::soundfont_math::SoundFontMath;
+use rustysynth::soundfont_math::*;
 
 fn set_parameter(gs: &mut [i16; GeneratorType::COUNT], generator: &Generator) {
     let index = generator.generator_type as usize;
@@ -124,7 +124,7 @@ impl PresetRegion {
     }
 
     pub fn get_initial_filter_cutoff_frequency(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::INITIAL_FILTER_CUTOFF_FREQUENCY as usize] as f32,
         )
     }
@@ -158,49 +158,43 @@ impl PresetRegion {
     }
 
     pub fn get_delay_modulation_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::DELAY_MODULATION_LFO as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::DELAY_MODULATION_LFO as usize] as f32)
     }
 
     pub fn get_frequency_modulation_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::FREQUENCY_MODULATION_LFO as usize] as f32,
         )
     }
 
     pub fn get_delay_vibrato_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::DELAY_VIBRATO_LFO as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::DELAY_VIBRATO_LFO as usize] as f32)
     }
 
     pub fn get_frequency_vibrato_lfo(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::FREQUENCY_VIBRATO_LFO as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::FREQUENCY_VIBRATO_LFO as usize] as f32)
     }
 
     pub fn get_delay_modulation_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::DELAY_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_attack_modulation_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::ATTACK_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_hold_modulation_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::HOLD_MODULATION_ENVELOPE as usize] as f32,
         )
     }
 
     pub fn get_decay_modulation_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::DECAY_MODULATION_ENVELOPE as usize] as f32,
         )
     }
@@ -210,7 +204,7 @@ impl PresetRegion {
     }
 
     pub fn get_release_modulation_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
+        cents_to_multiplying_factor(
             self.gs[GeneratorType::RELEASE_MODULATION_ENVELOPE as usize] as f32,
         )
     }
@@ -224,27 +218,19 @@ impl PresetRegion {
     }
 
     pub fn get_delay_volume_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::DELAY_VOLUME_ENVELOPE as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::DELAY_VOLUME_ENVELOPE as usize] as f32)
     }
 
     pub fn get_attack_volume_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::ATTACK_VOLUME_ENVELOPE as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::ATTACK_VOLUME_ENVELOPE as usize] as f32)
     }
 
     pub fn get_hold_volume_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::HOLD_VOLUME_ENVELOPE as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::HOLD_VOLUME_ENVELOPE as usize] as f32)
     }
 
     pub fn get_decay_volume_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::DECAY_VOLUME_ENVELOPE as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::DECAY_VOLUME_ENVELOPE as usize] as f32)
     }
 
     pub fn get_sustain_volume_envelope(&self) -> f32 {
@@ -252,9 +238,7 @@ impl PresetRegion {
     }
 
     pub fn get_release_volume_envelope(&self) -> f32 {
-        SoundFontMath::cents_to_multiplying_factor(
-            self.gs[GeneratorType::RELEASE_VOLUME_ENVELOPE as usize] as f32,
-        )
+        cents_to_multiplying_factor(self.gs[GeneratorType::RELEASE_VOLUME_ENVELOPE as usize] as f32)
     }
 
     pub fn get_key_number_to_volume_envelope_hold(&self) -> i32 {

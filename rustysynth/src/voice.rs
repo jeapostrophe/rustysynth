@@ -5,8 +5,8 @@ use crate::channel::Channel;
 use crate::lfo::Lfo;
 use crate::modulation_envelope::ModulationEnvelope;
 use crate::oscillator::Oscillator;
-use crate::region_ex::RegionEx;
-use crate::soundfont_math::SoundFontMath;
+use crate::region_ex::*;
+use crate::soundfont_math::*;
 use crate::synthesizer::Sound;
 use crate::volume_envelope::VolumeEnvelope;
 
@@ -66,7 +66,7 @@ pub(crate) struct Voice {
     // This is used to smooth out the cutoff frequency.
     smoothed_cutoff: f32,
 
-    voice_state: i32,
+    voice_state: VoiceState,
     pub(crate) voice_length: usize,
     min_voice_length: usize,
 }
@@ -108,7 +108,7 @@ impl Voice {
             instrument_reverb: 0_f32,
             instrument_chorus: 0_f32,
             smoothed_cutoff: 0_f32,
-            voice_state: 0,
+            voice_state: VoiceState::default(),
             voice_length: 0,
             min_voice_length: (crate::SAMPLE_RATE / 500) as usize,
         }
@@ -125,16 +125,16 @@ impl Voice {
             // I'm not sure why, but this indeed improves the loudness variability.
             let sample_attenuation = 0.4_f32 * region.get_initial_attenuation();
             let filter_attenuation = 0.5_f32 * region.get_initial_filter_q();
-            let decibels = 2_f32 * SoundFontMath::linear_to_decibels(velocity as f32 / 127_f32)
+            let decibels = 2_f32 * linear_to_decibels(velocity as f32 / 127_f32)
                 - sample_attenuation
                 - filter_attenuation;
-            self.note_gain = SoundFontMath::decibels_to_linear(decibels);
+            self.note_gain = decibels_to_linear(decibels);
         } else {
             self.note_gain = 0_f32;
         }
 
         self.cutoff = region.get_initial_filter_cutoff_frequency();
-        self.resonance = SoundFontMath::decibels_to_linear(region.get_initial_filter_q());
+        self.resonance = decibels_to_linear(region.get_initial_filter_q());
 
         self.vib_lfo_to_pitch = 0.01_f32 * region.get_vibrato_lfo_to_pitch() as f32;
         self.mod_lfo_to_pitch = 0.01_f32 * region.get_modulation_lfo_to_pitch() as f32;
@@ -151,23 +151,23 @@ impl Voice {
         self.instrument_reverb = 0.01_f32 * region.get_reverb_effects_send();
         self.instrument_chorus = 0.01_f32 * region.get_chorus_effects_send();
 
-        RegionEx::start_volume_envelope(&mut self.vol_env, region, key, velocity);
-        RegionEx::start_modulation_envelope(&mut self.mod_env, region, key, velocity);
-        RegionEx::start_vibrato(&mut self.vib_lfo, region, key, velocity);
-        RegionEx::start_modulation(&mut self.mod_lfo, region, key, velocity);
-        RegionEx::start_oscillator(&mut self.oscillator, region);
+        start_volume_envelope(&mut self.vol_env, region, key, velocity);
+        start_modulation_envelope(&mut self.mod_env, region, key, velocity);
+        start_vibrato(&mut self.vib_lfo, region, key, velocity);
+        start_modulation(&mut self.mod_lfo, region, key, velocity);
+        start_oscillator(&mut self.oscillator, region);
         self.filter.clear_buffer();
         self.filter.set_low_pass_filter(self.cutoff, self.resonance);
 
         self.smoothed_cutoff = self.cutoff;
 
-        self.voice_state = VoiceState::PLAYING;
+        self.voice_state = VoiceState::Playing;
         self.voice_length = 0;
     }
 
     pub(crate) fn end(&mut self) {
-        if self.voice_state == VoiceState::PLAYING {
-            self.voice_state = VoiceState::RELEASE_REQUESTED;
+        if self.voice_state == VoiceState::Playing {
+            self.voice_state = VoiceState::ReleaseRequested;
         }
     }
 
@@ -176,7 +176,7 @@ impl Voice {
     }
 
     pub(crate) fn process(&mut self, data: &[i16], channels: &[Channel]) -> bool {
-        if self.note_gain < SoundFontMath::NON_AUDIBLE {
+        if self.note_gain < NON_AUDIBLE {
             return false;
         }
 
@@ -205,7 +205,7 @@ impl Voice {
         if self.dynamic_cutoff {
             let cents = self.mod_lfo_to_cutoff as f32 * self.mod_lfo.get_value()
                 + self.mod_env_to_cutoff as f32 * self.mod_env.get_value();
-            let factor = SoundFontMath::cents_to_multiplying_factor(cents);
+            let factor = cents_to_multiplying_factor(cents);
             let new_cutoff = factor * self.cutoff;
 
             // The cutoff change is limited within x0.5 and x2 to reduce pop noise.
@@ -230,7 +230,7 @@ impl Voice {
         let mut mix_gain = self.note_gain * channel_gain * self.vol_env.get_value();
         if self.dynamic_volume {
             let decibels = self.mod_lfo_to_volume * self.mod_lfo.get_value();
-            mix_gain *= SoundFontMath::decibels_to_linear(decibels);
+            mix_gain *= decibels_to_linear(decibels);
         }
 
         let angle =
@@ -238,7 +238,7 @@ impl Voice {
         if angle <= 0_f32 {
             self.current_mix_gain_left = mix_gain;
             self.current_mix_gain_right = 0_f32;
-        } else if angle >= SoundFontMath::HALF_PI {
+        } else if angle >= HALF_PI {
             self.current_mix_gain_left = 0_f32;
             self.current_mix_gain_right = mix_gain;
         } else {
@@ -268,17 +268,17 @@ impl Voice {
             return;
         }
 
-        if self.voice_state == VoiceState::RELEASE_REQUESTED && !channel_info.get_hold_pedal() {
+        if self.voice_state == VoiceState::ReleaseRequested && !channel_info.get_hold_pedal() {
             self.vol_env.release();
             self.mod_env.release();
             self.oscillator.release();
 
-            self.voice_state = VoiceState::RELEASED;
+            self.voice_state = VoiceState::Released;
         }
     }
 
     pub(crate) fn get_priority(&self) -> f32 {
-        if self.note_gain < SoundFontMath::NON_AUDIBLE {
+        if self.note_gain < NON_AUDIBLE {
             0_f32
         } else {
             self.vol_env.get_priority()
@@ -286,11 +286,10 @@ impl Voice {
     }
 }
 
-#[allow(unused)]
-struct VoiceState {}
-
-impl VoiceState {
-    const PLAYING: i32 = 0;
-    const RELEASE_REQUESTED: i32 = 1;
-    const RELEASED: i32 = 2;
+#[derive(Debug, Default, Eq, PartialEq)]
+enum VoiceState {
+    #[default]
+    Playing,
+    ReleaseRequested,
+    Released,
 }

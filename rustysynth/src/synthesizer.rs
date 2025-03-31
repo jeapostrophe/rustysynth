@@ -87,7 +87,7 @@ pub const PERCUSSION_CHANNEL: usize = 9;
 
 // XXX replace these functions with some SIMD operations
 mod array_math {
-    use crate::soundfont_math::SoundFontMath;
+    use crate::soundfont_math::*;
 
     pub fn multiply_add(a: f32, x: &[f32], destination: &mut [f32]) {
         for (x, destination) in x.iter().zip(destination.iter_mut()) {
@@ -110,7 +110,7 @@ mod array_math {
         destination: &mut [f32],
         inverse_block_size: f32,
     ) {
-        if previous_gain.max(current_gain) < SoundFontMath::NON_AUDIBLE {
+        if previous_gain.max(current_gain) < NON_AUDIBLE {
             return;
         }
 

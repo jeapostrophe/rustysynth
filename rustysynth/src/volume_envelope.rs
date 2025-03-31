@@ -1,4 +1,4 @@
-use crate::soundfont_math::SoundFontMath;
+use crate::soundfont_math::*;
 use crate::EnvelopeStage;
 
 #[derive(Debug, Default)]
@@ -94,19 +94,17 @@ impl VolumeEnvelope {
             self.priority = 2_f32 + self.value;
             true
         } else if self.stage == EnvelopeStage::DECAY {
-            self.value = (SoundFontMath::exp_cutoff(
-                self.decay_slope * (current_time - self.decay_start_time),
-            ) as f32)
+            self.value = (exp_cutoff(self.decay_slope * (current_time - self.decay_start_time))
+                as f32)
                 .max(self.sustain_level);
             self.priority = 1_f32 + self.value;
-            self.value > SoundFontMath::NON_AUDIBLE
+            self.value > NON_AUDIBLE
         } else if self.stage == EnvelopeStage::RELEASE {
             self.value = (self.release_level as f64
-                * SoundFontMath::exp_cutoff(
-                    self.release_slope * (current_time - self.release_start_time),
-                )) as f32;
+                * exp_cutoff(self.release_slope * (current_time - self.release_start_time)))
+                as f32;
             self.priority = self.value;
-            self.value > SoundFontMath::NON_AUDIBLE
+            self.value > NON_AUDIBLE
         } else {
             panic!("Invalid envelope stage.");
         }

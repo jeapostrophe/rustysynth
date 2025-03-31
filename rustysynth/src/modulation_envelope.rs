@@ -1,4 +1,4 @@
-use crate::soundfont_math::SoundFontMath;
+use crate::soundfont_math::*;
 use crate::EnvelopeStage;
 
 #[derive(Debug, Default)]
@@ -95,13 +95,13 @@ impl ModulationEnvelope {
         } else if self.stage == EnvelopeStage::DECAY {
             self.value = ((self.decay_slope * (self.decay_end_time - current_time)) as f32)
                 .max(self.sustain_level);
-            self.value > SoundFontMath::NON_AUDIBLE
+            self.value > NON_AUDIBLE
         } else if self.stage == EnvelopeStage::RELEASE {
             self.value = ((self.release_level as f64
                 * self.release_slope
                 * (self.release_end_time - current_time)) as f32)
                 .max(0_f32);
-            self.value > SoundFontMath::NON_AUDIBLE
+            self.value > NON_AUDIBLE
         } else {
             panic!("Invalid envelope stage.");
         }
