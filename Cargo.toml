@@ -3,6 +3,7 @@ members = [
     "workspace",
     "rustysynth",
     "rustysynth-soundfont",
+    "rustysynth-midi",
 ]
 resolver = "2"
 

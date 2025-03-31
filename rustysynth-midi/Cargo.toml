@@ -1,0 +1,9 @@
+[package]
+name = "rustysynth-midi"
+version = "1.3.5"
+edition.workspace = true
+
+[dependencies]
+rustysynth = { path = "../rustysynth" }
+anyhow.workspace = true
+midly = "0.5.3"

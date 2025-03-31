@@ -5,7 +5,6 @@ use crate::reverb::Reverb;
 use crate::synthesizer_settings::{SynthesizerError, SynthesizerSettings};
 use crate::voice_collection::VoiceCollection;
 use anyhow::Result;
-use midly::num::u4;
 use std::cmp;
 
 pub trait Sound {
@@ -65,12 +64,11 @@ pub trait SoundSource {
     fn wave_data(&self) -> &Vec<i16>;
 }
 
-/// An instance of the SoundFont synthesizer.
 #[derive(Debug)]
-pub struct Synthesizer<SoundSource> {
-    pub(crate) sound_font: SoundSource,
-    pub(crate) sample_rate: i32,
-    pub(crate) block_size: usize,
+pub struct Synthesizer<Source> {
+    pub(crate) sound_font: Source,
+    pub sample_rate: i32,
+    pub block_size: usize,
 
     channels: Vec<Channel>,
 
@@ -88,7 +86,7 @@ pub struct Synthesizer<SoundSource> {
     effects: Option<Effects>,
 }
 
-/// The percussion channel.
+pub const CHANNELS: usize = 16;
 pub const PERCUSSION_CHANNEL: usize = 9;
 
 // XXX replace these functions with some SIMD operations
@@ -129,13 +127,18 @@ mod array_math {
     }
 }
 
+macro_rules! set_channel {
+    ($synth_fun:ident) => {
+        set_channel!($synth_fun, u8);
+    };
+    ($synth_fun:ident, $value_ty:ident) => {
+        pub fn $synth_fun(&mut self, channel: u8, value: $value_ty) {
+            self.channels[channel as usize].$synth_fun(value.into());
+        }
+    };
+}
+
 impl<Source: SoundSource> Synthesizer<Source> {
-    /// Initializes a new synthesizer using a specified SoundFont and settings.
-    ///
-    /// # Arguments
-    ///
-    /// * `sound_font` - The SoundFont instance.
-    /// * `settings` - The settings for synthesis.
     pub fn new<S>(
         sound_font_pre: S,
         settings: &SynthesizerSettings,
@@ -147,7 +150,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
         settings.validate()?;
 
         let mut channels: Vec<Channel> = Vec::new();
-        for i in 0..(u4::max_value().as_int() as usize) {
+        for i in 0..CHANNELS {
             channels.push(Channel::new(i == PERCUSSION_CHANNEL));
         }
 
@@ -183,62 +186,27 @@ impl<Source: SoundSource> Synthesizer<Source> {
         })
     }
 
-    /// Processes a MIDI message.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The channel to which the message will be sent.
-    /// * `command` - The type of the message.
-    /// * `data1` - The first data part of the message.
-    /// * `data2` - The second data part of the message.
-    pub fn process_midi_message<'a>(&mut self, channel: u4, msg: midly::MidiMessage) {
-        let channel = channel.as_int() as i32;
-        let channel_info = &mut self.channels[channel as usize];
+    set_channel!(set_bank);
+    set_channel!(set_modulation_coarse);
+    set_channel!(set_modulation_fine);
+    set_channel!(data_entry_coarse);
+    set_channel!(data_entry_fine);
+    set_channel!(set_volume_coarse);
+    set_channel!(set_volume_fine);
+    set_channel!(set_pan_coarse);
+    set_channel!(set_pan_fine);
+    set_channel!(set_expression_coarse);
+    set_channel!(set_expression_fine);
+    set_channel!(set_hold_pedal);
+    set_channel!(set_reverb_send);
+    set_channel!(set_chorus_send);
+    set_channel!(set_nrpn_coarse);
+    set_channel!(set_nrpn_fine);
+    set_channel!(set_rpn_coarse);
+    set_channel!(set_rpn_fine);
+    set_channel!(set_patch);
+    set_channel!(set_pitch_bend, u16);
 
-        use midly::MidiMessage;
-        match msg {
-            MidiMessage::NoteOff { key, .. } => self.note_off(channel, key.as_int().into()),
-            MidiMessage::NoteOn { key, vel } => {
-                self.note_on(channel, key.as_int().into(), vel.as_int().into())
-            }
-            MidiMessage::Controller { controller, value } => match controller.as_int() {
-                0x00 => channel_info.set_bank(value.as_int().into()),
-                0x01 => channel_info.set_modulation_coarse(value.as_int().into()),
-                0x21 => channel_info.set_modulation_fine(value.as_int().into()),
-                0x06 => channel_info.data_entry_coarse(value.as_int().into()),
-                0x26 => channel_info.data_entry_fine(value.as_int().into()),
-                0x07 => channel_info.set_volume_coarse(value.as_int().into()),
-                0x27 => channel_info.set_volume_fine(value.as_int().into()),
-                0x0A => channel_info.set_pan_coarse(value.as_int().into()),
-                0x2A => channel_info.set_pan_fine(value.as_int().into()),
-                0x0B => channel_info.set_expression_coarse(value.as_int().into()),
-                0x2B => channel_info.set_expression_fine(value.as_int().into()),
-                0x40 => channel_info.set_hold_pedal(value.as_int().into()),
-                0x5B => channel_info.set_reverb_send(value.as_int().into()),
-                0x5D => channel_info.set_chorus_send(value.as_int().into()),
-                0x63 => channel_info.set_nrpn_coarse(value.as_int().into()),
-                0x62 => channel_info.set_nrpn_fine(value.as_int().into()),
-                0x65 => channel_info.set_rpn_coarse(value.as_int().into()),
-                0x64 => channel_info.set_rpn_fine(value.as_int().into()),
-                0x78 => self.note_off_all_channel(channel, true),
-                0x79 => self.reset_all_controllers_channel(channel),
-                0x7B => self.note_off_all_channel(channel, false),
-                _ => (),
-            },
-            MidiMessage::ProgramChange { program } => {
-                channel_info.set_patch(program.as_int().into())
-            }
-            MidiMessage::PitchBend { bend } => channel_info.set_pitch_bend(bend.0.as_int().into()),
-            _ => (),
-        }
-    }
-
-    /// Stops a note.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The channel of the note.
-    /// * `key` - The key of the note.
     pub fn note_off(&mut self, channel: i32, key: i32) {
         for voice in self.voices.get_active_voices().iter_mut() {
             if voice.channel == channel && voice.key == key {
@@ -247,13 +215,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
         }
     }
 
-    /// Starts a note.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The channel of the note.
-    /// * `key` - The key of the note.
-    /// * `velocity` - The velocity of the note.
     pub fn note_on(&mut self, channel: i32, key: i32, velocity: i32) {
         if velocity == 0 {
             self.note_off(channel, key);
@@ -274,11 +235,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
         }
     }
 
-    /// Stops all the notes in the specified channel.
-    ///
-    /// # Arguments
-    ///
-    /// * `immediate` - If `true`, notes will stop immediately without the release sound.
     pub fn note_off_all(&mut self, immediate: bool) {
         if immediate {
             self.voices.clear();
@@ -289,12 +245,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
         }
     }
 
-    /// Stops all the notes in the specified channel.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The channel in which the notes will be stopped.
-    /// * `immediate` - If `true`, notes will stop immediately without the release sound.
     pub fn note_off_all_channel(&mut self, channel: i32, immediate: bool) {
         for voice in self.voices.get_active_voices().iter_mut() {
             if voice.channel == channel {
@@ -307,23 +257,16 @@ impl<Source: SoundSource> Synthesizer<Source> {
         }
     }
 
-    /// Resets all the controllers.
     pub fn reset_all_controllers(&mut self) {
         for channel in &mut self.channels {
             channel.reset_all_controllers();
         }
     }
 
-    /// Resets all the controllers of the specified channel.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The channel to be reset.
     pub fn reset_all_controllers_channel(&mut self, channel: i32) {
         self.channels[channel as usize].reset_all_controllers();
     }
 
-    /// Resets the synthesizer.
     pub fn reset(&mut self) {
         self.voices.clear();
 
@@ -339,16 +282,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
         self.block_read = self.block_size;
     }
 
-    /// Renders the waveform.
-    ///
-    /// # Arguments
-    ///
-    /// * `left` - The buffer of the left channel to store the rendered waveform.
-    /// * `right` - The buffer of the right channel to store the rendered waveform.
-    ///
-    /// # Remarks
-    ///
-    /// The output buffers for the left and right must be the same length.
     pub fn render(&mut self, left: &mut [f32], right: &mut [f32]) {
         if left.len() != right.len() {
             panic!("The output buffers for the left and right must be the same length.");

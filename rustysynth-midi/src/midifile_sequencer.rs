@@ -1,5 +1,6 @@
 use crate::midifile::{MidiEvent, MidiFile};
-use crate::synthesizer::{SoundSource, Synthesizer};
+use crate::MidiAdapter;
+use rustysynth::{SoundSource, Synthesizer};
 use std::cmp;
 
 /// An instance of the MIDI file sequencer.

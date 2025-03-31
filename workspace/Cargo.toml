@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 rustysynth = { path = "../rustysynth" }
 rustysynth-soundfont = { path = "../rustysynth-soundfont" }
+rustysynth-midi = { path = "../rustysynth-midi" }

@@ -14,13 +14,8 @@ mod voice;
 mod voice_collection;
 mod volume_envelope;
 
-mod midifile;
-mod midifile_sequencer;
-
 mod chorus;
 mod reverb;
 
-pub use self::midifile::MidiFile;
-pub use self::midifile_sequencer::MidiFileSequencer;
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
 pub use self::synthesizer_settings::SynthesizerSettings;

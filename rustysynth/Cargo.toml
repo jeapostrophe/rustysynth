@@ -14,4 +14,3 @@ categories = ["multimedia::audio"]
 
 [dependencies]
 anyhow.workspace = true
-midly = "0.5.3"
