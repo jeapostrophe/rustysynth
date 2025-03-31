@@ -1,6 +1,6 @@
-use crate::envelope_stage::EnvelopeStage;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer_settings::SynthesizerSettings;
+use crate::EnvelopeStage;
 
 #[derive(Debug)]
 pub(crate) struct ModulationEnvelope {
@@ -21,7 +21,7 @@ pub(crate) struct ModulationEnvelope {
     release_level: f32,
 
     processed_sample_count: usize,
-    stage: i32,
+    stage: EnvelopeStage,
     value: f32,
 }
 
@@ -40,7 +40,7 @@ impl ModulationEnvelope {
             sustain_level: 0_f32,
             release_level: 0_f32,
             processed_sample_count: 0,
-            stage: 0,
+            stage: EnvelopeStage::default(),
             value: 0_f32,
         }
     }
@@ -97,7 +97,7 @@ impl ModulationEnvelope {
             if current_time < end_time {
                 break;
             } else {
-                self.stage += 1;
+                self.stage.next();
             }
         }
 
