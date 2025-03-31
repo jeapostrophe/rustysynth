@@ -1,7 +1,6 @@
 use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
-use crate::synthesizer_settings::{SynthesizerError, SynthesizerSettings};
 use crate::voice_collection::VoiceCollection;
 use crate::LoopMode;
 use anyhow::Result;
@@ -67,9 +66,6 @@ pub trait SoundSource {
 #[derive(Debug)]
 pub struct Synthesizer<Source> {
     pub(crate) sound_font: Source,
-    pub sample_rate: i32,
-    pub block_size: usize,
-
     channels: Vec<Channel>,
 
     voices: VoiceCollection,
@@ -83,7 +79,7 @@ pub struct Synthesizer<Source> {
 
     master_volume: f32,
 
-    effects: Option<Effects>,
+    effects: Effects,
 }
 
 pub const CHANNELS: usize = 16;
@@ -139,42 +135,32 @@ macro_rules! set_channel {
 }
 
 impl<Source: SoundSource> Synthesizer<Source> {
-    pub fn new<S>(
-        sound_font_pre: S,
-        settings: &SynthesizerSettings,
-    ) -> Result<Self, SynthesizerError>
+    pub fn new<S>(sound_font_pre: S) -> Result<Self>
     where
         Source: From<S>,
     {
         let sound_font = sound_font_pre.into();
-        settings.validate()?;
 
         let mut channels: Vec<Channel> = Vec::new();
         for i in 0..CHANNELS {
             channels.push(Channel::new(i == PERCUSSION_CHANNEL));
         }
 
-        let voices = VoiceCollection::new(settings);
+        let voices = VoiceCollection::new();
 
-        let block_left: Vec<f32> = vec![0_f32; settings.block_size];
-        let block_right: Vec<f32> = vec![0_f32; settings.block_size];
+        let block_left: Vec<f32> = vec![0_f32; crate::BLOCK_SIZE];
+        let block_right: Vec<f32> = vec![0_f32; crate::BLOCK_SIZE];
 
-        let inverse_block_size = 1_f32 / settings.block_size as f32;
+        let inverse_block_size = 1_f32 / crate::BLOCK_SIZE as f32;
 
-        let block_read = settings.block_size;
+        let block_read = crate::BLOCK_SIZE;
 
         let master_volume = 0.5_f32;
 
-        let effects = if settings.enable_reverb_and_chorus {
-            Some(Effects::new(settings))
-        } else {
-            None
-        };
+        let effects = Effects::new();
 
         Ok(Self {
             sound_font,
-            sample_rate: settings.sample_rate,
-            block_size: settings.block_size,
             channels,
             voices,
             block_left,
@@ -274,12 +260,10 @@ impl<Source: SoundSource> Synthesizer<Source> {
             channel.reset();
         }
 
-        if let Some(effects) = self.effects.as_mut() {
-            effects.reverb.mute();
-            effects.chorus.mute();
-        }
+        self.effects.reverb.mute();
+        self.effects.chorus.mute();
 
-        self.block_read = self.block_size;
+        self.block_read = crate::BLOCK_SIZE;
     }
 
     pub fn render(&mut self, left: &mut [f32], right: &mut [f32]) {
@@ -291,12 +275,12 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         let mut wrote = 0;
         while wrote < left_length {
-            if self.block_read == self.block_size {
+            if self.block_read == crate::BLOCK_SIZE {
                 self.render_block();
                 self.block_read = 0;
             }
 
-            let src_rem = self.block_size - self.block_read;
+            let src_rem = crate::BLOCK_SIZE - self.block_read;
             let dst_rem = left_length - wrote;
             let rem = cmp::min(src_rem, dst_rem);
 
@@ -337,7 +321,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
             );
         }
 
-        if let Some(effects) = self.effects.as_mut() {
+        {
+            let effects = &mut self.effects;
             let chorus = &mut effects.chorus;
             let chorus_input_left = &mut effects.chorus_input_left[..];
             let chorus_input_right = &mut effects.chorus_input_right[..];
@@ -434,17 +419,17 @@ struct Effects {
 }
 
 impl Effects {
-    fn new(settings: &SynthesizerSettings) -> Effects {
+    fn new() -> Effects {
         Self {
-            reverb: Reverb::new(settings.sample_rate),
-            reverb_input: vec![0_f32; settings.block_size],
-            reverb_output_left: vec![0_f32; settings.block_size],
-            reverb_output_right: vec![0_f32; settings.block_size],
-            chorus: Chorus::new(settings.sample_rate, 0.002, 0.0019, 0.4),
-            chorus_input_left: vec![0_f32; settings.block_size],
-            chorus_input_right: vec![0_f32; settings.block_size],
-            chorus_output_left: vec![0_f32; settings.block_size],
-            chorus_output_right: vec![0_f32; settings.block_size],
+            reverb: Reverb::new(),
+            reverb_input: vec![0_f32; crate::BLOCK_SIZE],
+            reverb_output_left: vec![0_f32; crate::BLOCK_SIZE],
+            reverb_output_right: vec![0_f32; crate::BLOCK_SIZE],
+            chorus: Chorus::new(0.002, 0.0019, 0.4),
+            chorus_input_left: vec![0_f32; crate::BLOCK_SIZE],
+            chorus_input_right: vec![0_f32; crate::BLOCK_SIZE],
+            chorus_output_left: vec![0_f32; crate::BLOCK_SIZE],
+            chorus_output_right: vec![0_f32; crate::BLOCK_SIZE],
         }
     }
 }

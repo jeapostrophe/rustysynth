@@ -1,11 +1,8 @@
 use crate::soundfont_math::SoundFontMath;
-use crate::synthesizer_settings::SynthesizerSettings;
 use crate::EnvelopeStage;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct ModulationEnvelope {
-    sample_rate: i32,
-
     attack_slope: f64,
     decay_slope: f64,
     release_slope: f64,
@@ -26,23 +23,8 @@ pub(crate) struct ModulationEnvelope {
 }
 
 impl ModulationEnvelope {
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
-        Self {
-            sample_rate: settings.sample_rate,
-            attack_slope: 0_f64,
-            decay_slope: 0_f64,
-            release_slope: 0_f64,
-            attack_start_time: 0_f64,
-            hold_start_time: 0_f64,
-            decay_start_time: 0_f64,
-            decay_end_time: 0_f64,
-            release_end_time: 0_f64,
-            sustain_level: 0_f32,
-            release_level: 0_f32,
-            processed_sample_count: 0,
-            stage: EnvelopeStage::default(),
-            value: 0_f32,
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn start(
@@ -77,14 +59,14 @@ impl ModulationEnvelope {
 
     pub(crate) fn release(&mut self) {
         self.stage = EnvelopeStage::RELEASE;
-        self.release_end_time += self.processed_sample_count as f64 / self.sample_rate as f64;
+        self.release_end_time += self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
         self.release_level = self.value;
     }
 
     pub(crate) fn process(&mut self, sample_count: usize) -> bool {
         self.processed_sample_count += sample_count;
 
-        let current_time = self.processed_sample_count as f64 / self.sample_rate as f64;
+        let current_time = self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
 
         while self.stage <= EnvelopeStage::HOLD {
             let end_time = match self.stage {

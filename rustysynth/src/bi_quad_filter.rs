@@ -1,11 +1,7 @@
 use std::f32::consts;
 
-use crate::synthesizer_settings::SynthesizerSettings;
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct BiQuadFilter {
-    sample_rate: i32,
-
     active: bool,
 
     a0: f32,
@@ -23,20 +19,8 @@ pub(crate) struct BiQuadFilter {
 impl BiQuadFilter {
     const RESONANCE_PEAK_OFFSET: f32 = 1_f32 - 1_f32 / core::f32::consts::SQRT_2;
 
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
-        Self {
-            sample_rate: settings.sample_rate,
-            active: false,
-            a0: 0_f32,
-            a1: 0_f32,
-            a2: 0_f32,
-            a3: 0_f32,
-            a4: 0_f32,
-            x1: 0_f32,
-            x2: 0_f32,
-            y1: 0_f32,
-            y2: 0_f32,
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn clear_buffer(&mut self) {
@@ -47,7 +31,8 @@ impl BiQuadFilter {
     }
 
     pub(crate) fn set_low_pass_filter(&mut self, cutoff_frequency: f32, resonance: f32) {
-        if cutoff_frequency < 0.499_f32 * self.sample_rate as f32 {
+        let sample_rate = crate::SAMPLE_RATE as f32;
+        if cutoff_frequency < 0.499_f32 * sample_rate {
             self.active = true;
 
             // This equation gives the Q value which makes the desired resonance peak.
@@ -55,7 +40,7 @@ impl BiQuadFilter {
             let q = resonance
                 - BiQuadFilter::RESONANCE_PEAK_OFFSET / (1_f32 + 6_f32 * (resonance - 1_f32));
 
-            let w = 2_f32 * consts::PI * cutoff_frequency / self.sample_rate as f32;
+            let w = 2_f32 * consts::PI * cutoff_frequency / sample_rate;
             let cosw = w.cos();
             let alpha = w.sin() / (2_f32 * q);
 

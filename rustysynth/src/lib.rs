@@ -7,7 +7,6 @@ mod modulation_envelope;
 mod oscillator;
 mod region_ex;
 mod synthesizer;
-mod synthesizer_settings;
 mod voice;
 mod voice_collection;
 mod volume_envelope;
@@ -16,12 +15,16 @@ mod chorus;
 mod reverb;
 
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
-pub use self::synthesizer_settings::SynthesizerSettings;
+
+pub const SAMPLE_RATE: i32 = 44100;
+pub const BLOCK_SIZE: usize = 64;
+pub const MAXIMUM_POLYPHONY: usize = 64;
 
 /// Specifies how the sample loops during playback.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub enum LoopMode {
     /// The sample will be played without loop.
+    #[default]
     NoLoop,
     /// The sample will loop continuously.
     Continuous,

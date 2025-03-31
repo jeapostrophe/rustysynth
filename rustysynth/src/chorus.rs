@@ -14,7 +14,8 @@ pub(crate) struct Chorus {
 }
 
 impl Chorus {
-    pub(crate) fn new(sample_rate: i32, delay: f64, depth: f64, frequency: f64) -> Self {
+    pub(crate) fn new(delay: f64, depth: f64, frequency: f64) -> Self {
+        let sample_rate = crate::SAMPLE_RATE;
         let buffer_l = vec![0_f32; ((sample_rate as f64) * (delay + depth)) as usize + 2];
         let buffer_r = vec![0_f32; ((sample_rate as f64) * (delay + depth)) as usize + 2];
 

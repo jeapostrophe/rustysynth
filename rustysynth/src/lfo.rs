@@ -1,10 +1,5 @@
-use crate::synthesizer_settings::SynthesizerSettings;
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Lfo {
-    sample_rate: i32,
-    block_size: usize,
-
     active: bool,
 
     delay: f64,
@@ -15,16 +10,8 @@ pub(crate) struct Lfo {
 }
 
 impl Lfo {
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
-        Self {
-            sample_rate: settings.sample_rate,
-            block_size: settings.block_size,
-            active: false,
-            delay: 0_f64,
-            period: 0_f64,
-            processed_sample_count: 0,
-            value: 0_f32,
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn start(&mut self, delay: f32, frequency: f32) {
@@ -47,9 +34,9 @@ impl Lfo {
             return;
         }
 
-        self.processed_sample_count += self.block_size;
+        self.processed_sample_count += crate::BLOCK_SIZE;
 
-        let current_time = self.processed_sample_count as f64 / self.sample_rate as f64;
+        let current_time = self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
 
         if current_time < self.delay {
             self.value = 0_f32;

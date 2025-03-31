@@ -1,6 +1,5 @@
 use crate::channel::Channel;
 use crate::synthesizer::Sound;
-use crate::synthesizer_settings::SynthesizerSettings;
 use crate::voice::Voice;
 
 #[derive(Debug)]
@@ -10,10 +9,10 @@ pub(crate) struct VoiceCollection {
 }
 
 impl VoiceCollection {
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
+    pub(crate) fn new() -> Self {
         let mut voices: Vec<Voice> = Vec::new();
-        for _i in 0..settings.maximum_polyphony {
-            voices.push(Voice::new(settings));
+        for _i in 0..crate::MAXIMUM_POLYPHONY {
+            voices.push(Voice::new());
         }
 
         Self {

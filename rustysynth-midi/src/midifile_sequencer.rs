@@ -18,7 +18,7 @@ pub struct MidiFileSequencer<Source> {
 impl<Source: SoundSource> MidiFileSequencer<Source> {
     pub fn new(mut synthesizer: Synthesizer<Source>, midi_file: MidiFile) -> Self {
         synthesizer.reset();
-        let block_wrote = synthesizer.block_size;
+        let block_wrote = rustysynth::BLOCK_SIZE;
         Self {
             synthesizer,
             midi_file,
@@ -49,16 +49,16 @@ impl<Source: SoundSource> MidiFileSequencer<Source> {
         );
 
         let left_length = left.len();
+        let block_size = rustysynth::BLOCK_SIZE;
         let mut wrote: usize = 0;
         while wrote < left_length {
-            if self.block_wrote == self.synthesizer.block_size {
+            if self.block_wrote == block_size {
                 self.process_events();
                 self.block_wrote = 0;
-                self.current_time +=
-                    self.synthesizer.block_size as f64 / self.synthesizer.sample_rate as f64;
+                self.current_time += block_size as f64 / rustysynth::SAMPLE_RATE as f64;
             }
 
-            let src_rem = self.synthesizer.block_size - self.block_wrote;
+            let src_rem = block_size - self.block_wrote;
             let dst_rem = left_length - wrote;
             let rem = cmp::min(src_rem, dst_rem);
 

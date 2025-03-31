@@ -8,13 +8,10 @@ use crate::oscillator::Oscillator;
 use crate::region_ex::RegionEx;
 use crate::soundfont_math::SoundFontMath;
 use crate::synthesizer::Sound;
-use crate::synthesizer_settings::SynthesizerSettings;
 use crate::volume_envelope::VolumeEnvelope;
 
 #[derive(Debug)]
 pub(crate) struct Voice {
-    block_size: usize,
-
     vol_env: VolumeEnvelope,
     mod_env: ModulationEnvelope,
 
@@ -75,16 +72,15 @@ pub(crate) struct Voice {
 }
 
 impl Voice {
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            block_size: settings.block_size,
-            vol_env: VolumeEnvelope::new(settings),
-            mod_env: ModulationEnvelope::new(settings),
-            vib_lfo: Lfo::new(settings),
-            mod_lfo: Lfo::new(settings),
-            oscillator: Oscillator::new(settings),
-            filter: BiQuadFilter::new(settings),
-            block: vec![0_f32; settings.block_size],
+            vol_env: VolumeEnvelope::new(),
+            mod_env: ModulationEnvelope::new(),
+            vib_lfo: Lfo::new(),
+            mod_lfo: Lfo::new(),
+            oscillator: Oscillator::new(),
+            filter: BiQuadFilter::new(),
+            block: vec![0_f32; crate::BLOCK_SIZE],
             previous_mix_gain_left: 0_f32,
             previous_mix_gain_right: 0_f32,
             current_mix_gain_left: 0_f32,
@@ -114,7 +110,7 @@ impl Voice {
             smoothed_cutoff: 0_f32,
             voice_state: 0,
             voice_length: 0,
-            min_voice_length: (settings.sample_rate / 500) as usize,
+            min_voice_length: (crate::SAMPLE_RATE / 500) as usize,
         }
     }
 
@@ -188,11 +184,11 @@ impl Voice {
 
         self.release_if_necessary(channel_info);
 
-        if !self.vol_env.process(self.block_size) {
+        if !self.vol_env.process(crate::BLOCK_SIZE) {
             return false;
         }
 
-        self.mod_env.process(self.block_size);
+        self.mod_env.process(crate::BLOCK_SIZE);
         self.vib_lfo.process();
         self.mod_lfo.process();
 
@@ -268,7 +264,7 @@ impl Voice {
             self.previous_chorus_send = self.current_chorus_send;
         }
 
-        self.voice_length += self.block_size;
+        self.voice_length += crate::BLOCK_SIZE;
 
         true
     }

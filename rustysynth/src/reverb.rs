@@ -55,7 +55,8 @@ impl Reverb {
     const APF_TUNING_L4: usize = 225;
     const APF_TUNING_R4: usize = 225 + Reverb::STEREO_SPREAD;
 
-    pub(crate) fn new(sample_rate: i32) -> Self {
+    pub(crate) fn new() -> Self {
+        let sample_rate = crate::SAMPLE_RATE;
         let cfs_l: Vec<CombFilter> = vec![
             CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L1)),
             CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L2)),

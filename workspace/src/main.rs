@@ -1,4 +1,4 @@
-use rustysynth::{Synthesizer, SynthesizerSettings};
+use rustysynth::Synthesizer;
 use rustysynth_midi::{MidiFile, MidiFileSequencer};
 use rustysynth_soundfont::{SoundFont, SoundFontProc};
 use std::fs::File;
@@ -15,9 +15,7 @@ fn simple_chord() {
     let sound_font = SoundFont::new(&mut sf2).unwrap();
 
     // Create the synthesizer.
-    let settings = SynthesizerSettings::new(44100);
-    let mut synthesizer: Synthesizer<SoundFontProc> =
-        Synthesizer::new(sound_font, &settings).unwrap();
+    let mut synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font).unwrap();
 
     // Play some notes (middle C, E, G).
     synthesizer.note_on(0, 60, 100);
@@ -25,7 +23,7 @@ fn simple_chord() {
     synthesizer.note_on(0, 67, 100);
 
     // The output buffer (3 seconds).
-    let sample_count = (3 * settings.sample_rate) as usize;
+    let sample_count = (3 * rustysynth::SAMPLE_RATE) as usize;
     let mut left: Vec<f32> = vec![0_f32; sample_count];
     let mut right: Vec<f32> = vec![0_f32; sample_count];
 
@@ -46,9 +44,8 @@ fn flourish() {
     let midi_file = MidiFile::new(&mut mid).unwrap();
 
     // Create the MIDI file sequencer.
-    let settings = SynthesizerSettings::new(44100);
-    let synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font, &settings).unwrap();
-    let sample_count = (settings.sample_rate as f64 * midi_file.get_length()) as usize;
+    let synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font).unwrap();
+    let sample_count = (rustysynth::SAMPLE_RATE as f64 * midi_file.get_length()) as usize;
     let mut sequencer = MidiFileSequencer::new(synthesizer, midi_file);
 
     // The output buffer.

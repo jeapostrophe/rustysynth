@@ -1,4 +1,3 @@
-use crate::synthesizer_settings::SynthesizerSettings;
 use crate::LoopMode;
 
 // In this class, fixed-point numbers are used for speed-up.
@@ -6,10 +5,8 @@ use crate::LoopMode;
 // and the rest represent the integer part.
 // For clarity, fixed-point number variables have a suffix "_fp".
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Oscillator {
-    synthesizer_sample_rate: i32,
-
     loop_mode: LoopMode,
     sample_sample_rate: i32,
     start: i32,
@@ -32,22 +29,8 @@ impl Oscillator {
     const FRAC_UNIT: i64 = 1_i64 << Oscillator::FRAC_BITS;
     const FP_TO_SAMPLE: f32 = 1_f32 / (32768 * Oscillator::FRAC_UNIT) as f32;
 
-    pub(crate) fn new(settings: &SynthesizerSettings) -> Self {
-        Self {
-            synthesizer_sample_rate: settings.sample_rate,
-            loop_mode: LoopMode::NoLoop,
-            sample_sample_rate: 0,
-            start: 0,
-            end: 0,
-            start_loop: 0,
-            end_loop: 0,
-            root_key: 0,
-            tune: 0_f32,
-            pitch_change_scale: 0_f32,
-            sample_rate_ratio: 0_f32,
-            looping: false,
-            position_fp: 0,
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -74,7 +57,7 @@ impl Oscillator {
 
         self.tune = coarse_tune as f32 + 0.01_f32 * fine_tune as f32;
         self.pitch_change_scale = 0.01_f32 * scale_tuning as f32;
-        self.sample_rate_ratio = sample_rate as f32 / self.synthesizer_sample_rate as f32;
+        self.sample_rate_ratio = sample_rate as f32 / crate::SAMPLE_RATE as f32;
         self.looping = self.loop_mode != LoopMode::NoLoop;
         self.position_fp = (start as i64) << Oscillator::FRAC_BITS;
     }
