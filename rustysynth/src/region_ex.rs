@@ -55,7 +55,7 @@ impl RegionEx {
                 key,
             );
         let sustain = SoundFontMath::decibels_to_linear(-region.get_sustain_volume_envelope());
-        let release = SoundFontMath::max(region.get_release_volume_envelope(), 0.01_f32);
+        let release = region.get_release_volume_envelope().max(0.01_f32);
 
         envelope.start(delay, attack, hold, decay, sustain, release);
     }

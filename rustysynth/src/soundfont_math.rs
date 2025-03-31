@@ -7,14 +7,6 @@ impl SoundFontMath {
     pub const NON_AUDIBLE: f32 = 1.0e-3_f32;
     pub const LOG_NON_AUDIBLE: f32 = -6.907_755_4_f32;
 
-    pub fn max(x: f32, y: f32) -> f32 {
-        if x > y {
-            x
-        } else {
-            y
-        }
-    }
-
     pub fn clamp(value: f32, min: f32, max: f32) -> f32 {
         if value < min {
             min

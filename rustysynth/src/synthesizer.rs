@@ -110,7 +110,7 @@ mod array_math {
         destination: &mut [f32],
         inverse_block_size: f32,
     ) {
-        if SoundFontMath::max(previous_gain, current_gain) < SoundFontMath::NON_AUDIBLE {
+        if previous_gain.max(current_gain) < SoundFontMath::NON_AUDIBLE {
             return;
         }
 
