@@ -1,5 +1,5 @@
-use crate::loop_mode::LoopMode;
 use crate::synthesizer_settings::SynthesizerSettings;
+use crate::LoopMode;
 
 // In this class, fixed-point numbers are used for speed-up.
 // A fixed-point number is expressed by Int64, whose lower 24 bits represent the fraction part,

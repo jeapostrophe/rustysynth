@@ -1,8 +1,8 @@
 use crate::generator_type::GeneratorType;
 use crate::instrument_region::InstrumentRegion;
 use crate::preset_region::PresetRegion;
-use rustysynth::loop_mode::LoopMode;
 use rustysynth::soundfont_math::SoundFontMath;
+use rustysynth::LoopMode;
 use rustysynth::Sound;
 
 pub struct RegionPair<'a> {

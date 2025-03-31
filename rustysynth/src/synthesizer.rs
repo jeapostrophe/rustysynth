@@ -1,9 +1,9 @@
 use crate::channel::Channel;
 use crate::chorus::Chorus;
-use crate::loop_mode::LoopMode;
 use crate::reverb::Reverb;
 use crate::synthesizer_settings::{SynthesizerError, SynthesizerSettings};
 use crate::voice_collection::VoiceCollection;
+use crate::LoopMode;
 use anyhow::Result;
 use std::cmp;
 

@@ -1,4 +1,3 @@
-pub mod loop_mode;
 pub mod soundfont_math;
 
 mod bi_quad_filter;
@@ -18,6 +17,17 @@ mod reverb;
 
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
 pub use self::synthesizer_settings::SynthesizerSettings;
+
+/// Specifies how the sample loops during playback.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoopMode {
+    /// The sample will be played without loop.
+    NoLoop,
+    /// The sample will loop continuously.
+    Continuous,
+    /// The sample will loop until the note stops.
+    LoopUntilNoteOff,
+}
 
 #[derive(Debug, Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) enum EnvelopeStage {

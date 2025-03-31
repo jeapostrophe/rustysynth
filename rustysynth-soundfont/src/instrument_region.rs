@@ -3,8 +3,8 @@ use crate::generator::Generator;
 use crate::generator_type::GeneratorType;
 use crate::sample_header::SampleHeader;
 use crate::zone::Zone;
-use rustysynth::loop_mode::LoopMode;
 use rustysynth::soundfont_math::SoundFontMath;
+use rustysynth::LoopMode;
 
 fn set_parameter(gs: &mut [i16; GeneratorType::COUNT], generator: &Generator) {
     let index = generator.generator_type as usize;
