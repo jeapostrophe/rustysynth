@@ -1,5 +1,3 @@
-use std::f32::consts;
-
 use crate::bi_quad_filter::BiQuadFilter;
 use crate::channel::Channel;
 use crate::lfo::Lfo;
@@ -9,6 +7,8 @@ use crate::region_ex::*;
 use crate::soundfont_math::*;
 use crate::synthesizer::Sound;
 use crate::volume_envelope::VolumeEnvelope;
+use crate::Block;
+use std::f32::consts;
 
 #[derive(Debug)]
 pub(crate) struct Voice {
@@ -21,7 +21,7 @@ pub(crate) struct Voice {
     oscillator: Oscillator,
     filter: BiQuadFilter,
 
-    pub(crate) block: Vec<f32>,
+    pub(crate) block: Block<f32>,
 
     // A sudden change in the mix gain will cause pop noise.
     // To avoid this, we save the mix gain of the previous block,
@@ -80,7 +80,7 @@ impl Voice {
             mod_lfo: Lfo::default(),
             oscillator: Oscillator::default(),
             filter: BiQuadFilter::default(),
-            block: vec![0_f32; crate::BLOCK_SIZE],
+            block: [0_f32; crate::BLOCK_SIZE],
             previous_mix_gain_left: 0_f32,
             previous_mix_gain_right: 0_f32,
             current_mix_gain_left: 0_f32,
