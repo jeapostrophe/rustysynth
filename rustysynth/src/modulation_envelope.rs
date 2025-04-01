@@ -19,14 +19,10 @@ pub(crate) struct ModulationEnvelope {
 
     processed_sample_count: usize,
     stage: EnvelopeStage,
-    value: f32,
+    pub value: f32,
 }
 
 impl ModulationEnvelope {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     pub(crate) fn start(
         &mut self,
         delay: f32,
@@ -83,31 +79,31 @@ impl ModulationEnvelope {
             }
         }
 
-        if self.stage == EnvelopeStage::DELAY {
-            self.value = 0_f32;
-            true
-        } else if self.stage == EnvelopeStage::ATTACK {
-            self.value = (self.attack_slope * (current_time - self.attack_start_time)) as f32;
-            true
-        } else if self.stage == EnvelopeStage::HOLD {
-            self.value = 1_f32;
-            true
-        } else if self.stage == EnvelopeStage::DECAY {
-            self.value = ((self.decay_slope * (self.decay_end_time - current_time)) as f32)
-                .max(self.sustain_level);
-            self.value > NON_AUDIBLE
-        } else if self.stage == EnvelopeStage::RELEASE {
-            self.value = ((self.release_level as f64
-                * self.release_slope
-                * (self.release_end_time - current_time)) as f32)
-                .max(0_f32);
-            self.value > NON_AUDIBLE
-        } else {
-            panic!("Invalid envelope stage.");
+        match self.stage {
+            EnvelopeStage::DELAY => {
+                self.value = 0_f32;
+                true
+            }
+            EnvelopeStage::ATTACK => {
+                self.value = (self.attack_slope * (current_time - self.attack_start_time)) as f32;
+                true
+            }
+            EnvelopeStage::HOLD => {
+                self.value = 1_f32;
+                true
+            }
+            EnvelopeStage::DECAY => {
+                self.value = ((self.decay_slope * (self.decay_end_time - current_time)) as f32)
+                    .max(self.sustain_level);
+                self.value > NON_AUDIBLE
+            }
+            EnvelopeStage::RELEASE => {
+                self.value = ((self.release_level as f64
+                    * self.release_slope
+                    * (self.release_end_time - current_time)) as f32)
+                    .max(0_f32);
+                self.value > NON_AUDIBLE
+            }
         }
-    }
-
-    pub(crate) fn get_value(&self) -> f32 {
-        self.value
     }
 }

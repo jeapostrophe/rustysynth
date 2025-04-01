@@ -75,7 +75,7 @@ impl Voice {
     pub(crate) fn new() -> Self {
         Self {
             vol_env: VolumeEnvelope::default(),
-            mod_env: ModulationEnvelope::new(),
+            mod_env: ModulationEnvelope::default(),
             vib_lfo: Lfo::default(),
             mod_lfo: Lfo::default(),
             oscillator: Oscillator::new(),
@@ -194,8 +194,8 @@ impl Voice {
 
         let vib_pitch_change =
             (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * self.vib_lfo.value;
-        let mod_pitch_change = self.mod_lfo_to_pitch * self.mod_lfo.value
-            + self.mod_env_to_pitch * self.mod_env.get_value();
+        let mod_pitch_change =
+            self.mod_lfo_to_pitch * self.mod_lfo.value + self.mod_env_to_pitch * self.mod_env.value;
         let channel_pitch_change = channel_info.get_tune() + channel_info.get_pitch_bend();
         let pitch = self.key as f32 + vib_pitch_change + mod_pitch_change + channel_pitch_change;
         if !self.oscillator.process(data, &mut self.block[..], pitch) {
@@ -204,7 +204,7 @@ impl Voice {
 
         if self.dynamic_cutoff {
             let cents = self.mod_lfo_to_cutoff as f32 * self.mod_lfo.value
-                + self.mod_env_to_cutoff as f32 * self.mod_env.get_value();
+                + self.mod_env_to_cutoff as f32 * self.mod_env.value;
             let factor = cents_to_multiplying_factor(cents);
             let new_cutoff = factor * self.cutoff;
 
