@@ -78,7 +78,7 @@ impl Voice {
             mod_env: ModulationEnvelope::default(),
             vib_lfo: Lfo::default(),
             mod_lfo: Lfo::default(),
-            oscillator: Oscillator::new(),
+            oscillator: Oscillator::default(),
             filter: BiQuadFilter::default(),
             block: vec![0_f32; crate::BLOCK_SIZE],
             previous_mix_gain_left: 0_f32,

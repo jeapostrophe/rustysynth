@@ -29,10 +29,6 @@ impl Oscillator {
     const FRAC_UNIT: i64 = 1_i64 << Oscillator::FRAC_BITS;
     const FP_TO_SAMPLE: f32 = 1_f32 / (32768 * Oscillator::FRAC_UNIT) as f32;
 
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn start(
         &mut self,
