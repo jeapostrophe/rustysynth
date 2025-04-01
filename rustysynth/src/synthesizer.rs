@@ -2,6 +2,7 @@ use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 use crate::voice_collection::VoiceCollection;
+use crate::Block;
 use crate::LoopMode;
 use anyhow::Result;
 use std::cmp;
@@ -70,8 +71,8 @@ pub struct Synthesizer<Source> {
 
     voices: VoiceCollection,
 
-    block_left: Vec<f32>,
-    block_right: Vec<f32>,
+    block_left: Block<f32>,
+    block_right: Block<f32>,
 
     inverse_block_size: f32,
 
@@ -148,8 +149,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         let voices = VoiceCollection::new();
 
-        let block_left: Vec<f32> = vec![0_f32; crate::BLOCK_SIZE];
-        let block_right: Vec<f32> = vec![0_f32; crate::BLOCK_SIZE];
+        let block_left = [0_f32; crate::BLOCK_SIZE];
+        let block_right = [0_f32; crate::BLOCK_SIZE];
 
         let inverse_block_size = 1_f32 / crate::BLOCK_SIZE as f32;
 
@@ -157,7 +158,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         let master_volume = 0.5_f32;
 
-        let effects = Effects::new();
+        let effects = Effects::default();
 
         Ok(Self {
             sound_font,
@@ -407,29 +408,29 @@ impl<Source: SoundSource> Synthesizer<Source> {
 #[derive(Debug)]
 struct Effects {
     reverb: Reverb,
-    reverb_input: Vec<f32>,
-    reverb_output_left: Vec<f32>,
-    reverb_output_right: Vec<f32>,
+    reverb_input: Block<f32>,
+    reverb_output_left: Block<f32>,
+    reverb_output_right: Block<f32>,
 
     chorus: Chorus,
-    chorus_input_left: Vec<f32>,
-    chorus_input_right: Vec<f32>,
-    chorus_output_left: Vec<f32>,
-    chorus_output_right: Vec<f32>,
+    chorus_input_left: Block<f32>,
+    chorus_input_right: Block<f32>,
+    chorus_output_left: Block<f32>,
+    chorus_output_right: Block<f32>,
 }
 
-impl Effects {
-    fn new() -> Effects {
+impl Default for Effects {
+    fn default() -> Effects {
         Self {
             reverb: Reverb::default(),
-            reverb_input: vec![0_f32; crate::BLOCK_SIZE],
-            reverb_output_left: vec![0_f32; crate::BLOCK_SIZE],
-            reverb_output_right: vec![0_f32; crate::BLOCK_SIZE],
-            chorus: Chorus::new(0.002, 0.0019, 0.4),
-            chorus_input_left: vec![0_f32; crate::BLOCK_SIZE],
-            chorus_input_right: vec![0_f32; crate::BLOCK_SIZE],
-            chorus_output_left: vec![0_f32; crate::BLOCK_SIZE],
-            chorus_output_right: vec![0_f32; crate::BLOCK_SIZE],
+            reverb_input: [0_f32; crate::BLOCK_SIZE],
+            reverb_output_left: [0_f32; crate::BLOCK_SIZE],
+            reverb_output_right: [0_f32; crate::BLOCK_SIZE],
+            chorus: Chorus::default(),
+            chorus_input_left: [0_f32; crate::BLOCK_SIZE],
+            chorus_input_right: [0_f32; crate::BLOCK_SIZE],
+            chorus_output_left: [0_f32; crate::BLOCK_SIZE],
+            chorus_output_right: [0_f32; crate::BLOCK_SIZE],
         }
     }
 }
