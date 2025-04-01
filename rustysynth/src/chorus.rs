@@ -15,7 +15,7 @@ pub(crate) struct Chorus {
 
 impl Default for Chorus {
     fn default() -> Self {
-        let delay = 0.0002_f64;
+        let delay = 0.002_f64;
         let depth = 0.0019_f64;
         let frequency = 0.4_f64;
         let sample_rate = crate::SAMPLE_RATE;
