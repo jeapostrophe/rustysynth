@@ -17,16 +17,11 @@ pub(crate) struct VolumeEnvelope {
 
     processed_sample_count: usize,
     stage: EnvelopeStage,
-    value: f32,
-
-    priority: f32,
+    pub value: f32,
+    pub priority: f32,
 }
 
 impl VolumeEnvelope {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     pub(crate) fn start(
         &mut self,
         delay: f32,
@@ -81,40 +76,36 @@ impl VolumeEnvelope {
             }
         }
 
-        if self.stage == EnvelopeStage::DELAY {
-            self.value = 0_f32;
-            self.priority = 4_f32 + self.value;
-            true
-        } else if self.stage == EnvelopeStage::ATTACK {
-            self.value = (self.attack_slope * (current_time - self.attack_start_time)) as f32;
-            self.priority = 3_f32 + self.value;
-            true
-        } else if self.stage == EnvelopeStage::HOLD {
-            self.value = 1_f32;
-            self.priority = 2_f32 + self.value;
-            true
-        } else if self.stage == EnvelopeStage::DECAY {
-            self.value = (exp_cutoff(self.decay_slope * (current_time - self.decay_start_time))
-                as f32)
-                .max(self.sustain_level);
-            self.priority = 1_f32 + self.value;
-            self.value > NON_AUDIBLE
-        } else if self.stage == EnvelopeStage::RELEASE {
-            self.value = (self.release_level as f64
-                * exp_cutoff(self.release_slope * (current_time - self.release_start_time)))
-                as f32;
-            self.priority = self.value;
-            self.value > NON_AUDIBLE
-        } else {
-            panic!("Invalid envelope stage.");
+        match self.stage {
+            EnvelopeStage::DELAY => {
+                self.value = 0_f32;
+                self.priority = 4_f32 + self.value;
+                true
+            }
+            EnvelopeStage::ATTACK => {
+                self.value = (self.attack_slope * (current_time - self.attack_start_time)) as f32;
+                self.priority = 3_f32 + self.value;
+                true
+            }
+            EnvelopeStage::HOLD => {
+                self.value = 1_f32;
+                self.priority = 2_f32 + self.value;
+                true
+            }
+            EnvelopeStage::DECAY => {
+                self.value = (exp_cutoff(self.decay_slope * (current_time - self.decay_start_time))
+                    as f32)
+                    .max(self.sustain_level);
+                self.priority = 1_f32 + self.value;
+                self.value > NON_AUDIBLE
+            }
+            EnvelopeStage::RELEASE => {
+                self.value = (self.release_level as f64
+                    * exp_cutoff(self.release_slope * (current_time - self.release_start_time)))
+                    as f32;
+                self.priority = self.value;
+                self.value > NON_AUDIBLE
+            }
         }
-    }
-
-    pub(crate) fn get_value(&self) -> f32 {
-        self.value
-    }
-
-    pub(crate) fn get_priority(&self) -> f32 {
-        self.priority
     }
 }

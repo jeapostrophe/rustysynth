@@ -74,7 +74,7 @@ pub(crate) struct Voice {
 impl Voice {
     pub(crate) fn new() -> Self {
         Self {
-            vol_env: VolumeEnvelope::new(),
+            vol_env: VolumeEnvelope::default(),
             mod_env: ModulationEnvelope::new(),
             vib_lfo: Lfo::default(),
             mod_lfo: Lfo::default(),
@@ -227,7 +227,7 @@ impl Voice {
         let ve = channel_info.get_volume() * channel_info.get_expression();
         let channel_gain = ve * ve;
 
-        let mut mix_gain = self.note_gain * channel_gain * self.vol_env.get_value();
+        let mut mix_gain = self.note_gain * channel_gain * self.vol_env.value;
         if self.dynamic_volume {
             let decibels = self.mod_lfo_to_volume * self.mod_lfo.value;
             mix_gain *= decibels_to_linear(decibels);
@@ -281,7 +281,7 @@ impl Voice {
         if self.note_gain < NON_AUDIBLE {
             0_f32
         } else {
-            self.vol_env.get_priority()
+            self.vol_env.priority
         }
     }
 }
