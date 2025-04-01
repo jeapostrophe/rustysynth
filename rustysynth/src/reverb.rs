@@ -18,6 +18,77 @@ pub(crate) struct Reverb {
     width: f32,
 }
 
+impl Default for Reverb {
+    fn default() -> Self {
+        let cfs_l: Vec<CombFilter> = vec![
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L1)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L2)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L3)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L4)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L5)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L6)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L7)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L8)),
+        ];
+
+        let cfs_r: Vec<CombFilter> = vec![
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R1)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R2)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R3)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R4)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R5)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R6)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R7)),
+            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R8)),
+        ];
+
+        let mut apfs_l: Vec<AllPassFilter> = vec![
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L1)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L2)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L3)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L4)),
+        ];
+
+        let mut apfs_r: Vec<AllPassFilter> = vec![
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R1)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R2)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R3)),
+            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R4)),
+        ];
+
+        for apf in apfs_l.iter_mut() {
+            apf.set_feedback(0.5_f32);
+        }
+
+        for apf in apfs_r.iter_mut() {
+            apf.set_feedback(0.5_f32);
+        }
+
+        let mut reverb = Reverb {
+            cfs_l,
+            cfs_r,
+            apfs_l,
+            apfs_r,
+            gain: 0_f32,
+            room_size: 0_f32,
+            room_size1: 0_f32,
+            damp: 0_f32,
+            damp1: 0_f32,
+            wet: 0_f32,
+            wet1: 0_f32,
+            wet2: 0_f32,
+            width: 0_f32,
+        };
+
+        reverb.set_wet(Reverb::INITIAL_WET);
+        reverb.set_room_size(Reverb::INITIAL_ROOM);
+        reverb.set_damp(Reverb::INITIAL_DAMP);
+        reverb.set_width(Reverb::INITIAL_WIDTH);
+
+        reverb
+    }
+}
+
 impl Reverb {
     const FIXED_GAIN: f32 = 0.015;
     const SCALE_WET: f32 = 3.0;
@@ -55,76 +126,6 @@ impl Reverb {
     const APF_TUNING_L4: usize = 225;
     const APF_TUNING_R4: usize = 225 + Reverb::STEREO_SPREAD;
 
-    pub(crate) fn new() -> Self {
-        let sample_rate = crate::SAMPLE_RATE;
-        let cfs_l: Vec<CombFilter> = vec![
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L1)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L2)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L3)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L4)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L5)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L6)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L7)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_L8)),
-        ];
-
-        let cfs_r: Vec<CombFilter> = vec![
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R1)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R2)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R3)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R4)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R5)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R6)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R7)),
-            CombFilter::new(Reverb::scale_tuning(sample_rate, Reverb::CF_TUNING_R8)),
-        ];
-
-        let mut apfs_l: Vec<AllPassFilter> = vec![
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_L1)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_L2)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_L3)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_L4)),
-        ];
-
-        let mut apfs_r: Vec<AllPassFilter> = vec![
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_R1)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_R2)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_R3)),
-            AllPassFilter::new(Reverb::scale_tuning(sample_rate, Reverb::APF_TUNING_R4)),
-        ];
-
-        for apf in apfs_l.iter_mut() {
-            apf.set_feedback(0.5_f32);
-        }
-
-        for apf in apfs_r.iter_mut() {
-            apf.set_feedback(0.5_f32);
-        }
-
-        let mut reverb = Reverb {
-            cfs_l,
-            cfs_r,
-            apfs_l,
-            apfs_r,
-            gain: 0_f32,
-            room_size: 0_f32,
-            room_size1: 0_f32,
-            damp: 0_f32,
-            damp1: 0_f32,
-            wet: 0_f32,
-            wet1: 0_f32,
-            wet2: 0_f32,
-            width: 0_f32,
-        };
-
-        reverb.set_wet(Reverb::INITIAL_WET);
-        reverb.set_room_size(Reverb::INITIAL_ROOM);
-        reverb.set_damp(Reverb::INITIAL_DAMP);
-        reverb.set_width(Reverb::INITIAL_WIDTH);
-
-        reverb
-    }
-
     pub fn mute(&mut self) {
         for cf in self.cfs_l.iter_mut() {
             cf.mute();
@@ -143,8 +144,8 @@ impl Reverb {
         }
     }
 
-    fn scale_tuning(sample_rate: i32, tuning: usize) -> usize {
-        ((sample_rate as f64) / 44100_f64 * (tuning as f64)).round() as usize
+    fn scale_tuning(tuning: usize) -> usize {
+        ((crate::SAMPLE_RATE as f64) / 44100_f64 * (tuning as f64)).round() as usize
     }
 
     pub(crate) fn process(
@@ -260,11 +261,7 @@ impl CombFilter {
     }
 
     fn mute(&mut self) {
-        let buffer_length = self.buffer.len();
-        for i in 0..buffer_length {
-            self.buffer[i] = 0_f32;
-        }
-
+        self.buffer.fill(0_f32);
         self.filter_store = 0_f32;
     }
 
@@ -341,10 +338,7 @@ impl AllPassFilter {
     }
 
     fn mute(&mut self) {
-        let buffer_length = self.buffer.len();
-        for i in 0..buffer_length {
-            self.buffer[i] = 0_f32;
-        }
+        self.buffer.fill(0_f32);
     }
 
     fn process(&mut self, block: &mut [f32]) {

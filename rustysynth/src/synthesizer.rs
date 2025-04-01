@@ -421,7 +421,7 @@ struct Effects {
 impl Effects {
     fn new() -> Effects {
         Self {
-            reverb: Reverb::new(),
+            reverb: Reverb::default(),
             reverb_input: vec![0_f32; crate::BLOCK_SIZE],
             reverb_output_left: vec![0_f32; crate::BLOCK_SIZE],
             reverb_output_right: vec![0_f32; crate::BLOCK_SIZE],
