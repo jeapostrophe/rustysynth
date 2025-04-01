@@ -68,7 +68,6 @@ pub(crate) struct Voice {
 
     voice_state: VoiceState,
     pub(crate) voice_length: usize,
-    min_voice_length: usize,
 }
 
 impl Voice {
@@ -110,7 +109,6 @@ impl Voice {
             smoothed_cutoff: 0_f32,
             voice_state: VoiceState::default(),
             voice_length: 0,
-            min_voice_length: (crate::SAMPLE_RATE / 500) as usize,
         }
     }
 
@@ -264,7 +262,8 @@ impl Voice {
     }
 
     fn release_if_necessary(&mut self, channel_info: &Channel) {
-        if self.voice_length < self.min_voice_length {
+        const MIN_VOICE_LENGTH: usize = (crate::SAMPLE_RATE / 500) as usize;
+        if self.voice_length < MIN_VOICE_LENGTH {
             return;
         }
 
