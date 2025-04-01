@@ -76,8 +76,8 @@ impl Voice {
         Self {
             vol_env: VolumeEnvelope::new(),
             mod_env: ModulationEnvelope::new(),
-            vib_lfo: Lfo::new(),
-            mod_lfo: Lfo::new(),
+            vib_lfo: Lfo::default(),
+            mod_lfo: Lfo::default(),
             oscillator: Oscillator::new(),
             filter: BiQuadFilter::new(),
             block: vec![0_f32; crate::BLOCK_SIZE],
@@ -192,9 +192,9 @@ impl Voice {
         self.vib_lfo.process();
         self.mod_lfo.process();
 
-        let vib_pitch_change = (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch)
-            * self.vib_lfo.get_value();
-        let mod_pitch_change = self.mod_lfo_to_pitch * self.mod_lfo.get_value()
+        let vib_pitch_change =
+            (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * self.vib_lfo.value;
+        let mod_pitch_change = self.mod_lfo_to_pitch * self.mod_lfo.value
             + self.mod_env_to_pitch * self.mod_env.get_value();
         let channel_pitch_change = channel_info.get_tune() + channel_info.get_pitch_bend();
         let pitch = self.key as f32 + vib_pitch_change + mod_pitch_change + channel_pitch_change;
@@ -203,7 +203,7 @@ impl Voice {
         }
 
         if self.dynamic_cutoff {
-            let cents = self.mod_lfo_to_cutoff as f32 * self.mod_lfo.get_value()
+            let cents = self.mod_lfo_to_cutoff as f32 * self.mod_lfo.value
                 + self.mod_env_to_cutoff as f32 * self.mod_env.get_value();
             let factor = cents_to_multiplying_factor(cents);
             let new_cutoff = factor * self.cutoff;
@@ -229,7 +229,7 @@ impl Voice {
 
         let mut mix_gain = self.note_gain * channel_gain * self.vol_env.get_value();
         if self.dynamic_volume {
-            let decibels = self.mod_lfo_to_volume * self.mod_lfo.get_value();
+            let decibels = self.mod_lfo_to_volume * self.mod_lfo.value;
             mix_gain *= decibels_to_linear(decibels);
         }
 

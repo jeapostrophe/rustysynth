@@ -6,14 +6,10 @@ pub(crate) struct Lfo {
     period: f64,
 
     processed_sample_count: usize,
-    value: f32,
+    pub value: f32,
 }
 
 impl Lfo {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     pub(crate) fn start(&mut self, delay: f32, frequency: f32) {
         if frequency > 1.0E-3_f32 {
             self.active = true;
@@ -50,9 +46,5 @@ impl Lfo {
                 self.value = (4_f64 * (phase - 1.0)) as f32;
             }
         }
-    }
-
-    pub(crate) fn get_value(&self) -> f32 {
-        self.value
     }
 }
