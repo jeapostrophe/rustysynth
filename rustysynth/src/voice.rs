@@ -79,7 +79,7 @@ impl Voice {
             vib_lfo: Lfo::default(),
             mod_lfo: Lfo::default(),
             oscillator: Oscillator::new(),
-            filter: BiQuadFilter::new(),
+            filter: BiQuadFilter::default(),
             block: vec![0_f32; crate::BLOCK_SIZE],
             previous_mix_gain_left: 0_f32,
             previous_mix_gain_right: 0_f32,

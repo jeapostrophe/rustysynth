@@ -19,10 +19,6 @@ pub(crate) struct BiQuadFilter {
 impl BiQuadFilter {
     const RESONANCE_PEAK_OFFSET: f32 = 1_f32 - 1_f32 / core::f32::consts::SQRT_2;
 
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     pub(crate) fn clear_buffer(&mut self) {
         self.x1 = 0_f32;
         self.x2 = 0_f32;
