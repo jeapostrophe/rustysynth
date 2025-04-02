@@ -16,7 +16,9 @@ mod reverb;
 
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
 
+// XXX Move these things into const generic parameters
 pub const SAMPLE_RATE: i32 = 44100;
+// XXX Remove references to BLOCK_SIZE
 pub const BLOCK_SIZE: usize = 64;
 pub const MAXIMUM_POLYPHONY: usize = 64;
 
