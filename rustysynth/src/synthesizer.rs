@@ -13,17 +13,8 @@ pub trait Sound {
     fn get_sample_end(&self) -> i32;
     fn get_sample_start_loop(&self) -> i32;
     fn get_sample_end_loop(&self) -> i32;
-    fn get_modulation_lfo_to_pitch(&self) -> i32;
-    fn get_vibrato_lfo_to_pitch(&self) -> i32;
-    fn get_modulation_envelope_to_pitch(&self) -> i32;
     fn get_initial_filter_cutoff_frequency(&self) -> f32;
-    fn get_initial_filter_q(&self) -> f32;
-    fn get_modulation_lfo_to_filter_cutoff_frequency(&self) -> i32;
-    fn get_modulation_envelope_to_filter_cutoff_frequency(&self) -> i32;
-    fn get_modulation_lfo_to_volume(&self) -> f32;
-    fn get_chorus_effects_send(&self) -> f32;
     fn get_reverb_effects_send(&self) -> f32;
-    fn get_pan(&self) -> f32;
     fn get_delay_modulation_lfo(&self) -> f32;
     fn get_frequency_modulation_lfo(&self) -> f32;
     fn get_delay_vibrato_lfo(&self) -> f32;

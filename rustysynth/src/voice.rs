@@ -119,32 +119,30 @@ impl Voice {
             // According to the Polyphone's implementation, the initial attenuation should be reduced to 40%.
             // I'm not sure why, but this indeed improves the loudness variability.
             let sample_attenuation = 0.4_f32 * region.get_initial_attenuation();
-            let filter_attenuation = 0.5_f32 * region.get_initial_filter_q();
-            let decibels = 2_f32 * linear_to_decibels(velocity as f32 / 127_f32)
-                - sample_attenuation
-                - filter_attenuation;
+            let decibels =
+                2_f32 * linear_to_decibels(velocity as f32 / 127_f32) - sample_attenuation;
             self.note_gain = decibels_to_linear(decibels);
         } else {
             self.note_gain = 0_f32;
         }
 
         self.cutoff = region.get_initial_filter_cutoff_frequency();
-        self.resonance = decibels_to_linear(region.get_initial_filter_q());
+        self.resonance = 1.0;
 
-        self.vib_lfo_to_pitch = 0.01_f32 * region.get_vibrato_lfo_to_pitch() as f32;
-        self.mod_lfo_to_pitch = 0.01_f32 * region.get_modulation_lfo_to_pitch() as f32;
-        self.mod_env_to_pitch = 0.01_f32 * region.get_modulation_envelope_to_pitch() as f32;
+        self.vib_lfo_to_pitch = 0.0;
+        self.mod_lfo_to_pitch = 0.0;
+        self.mod_env_to_pitch = 0.0;
 
-        self.mod_lfo_to_cutoff = region.get_modulation_lfo_to_filter_cutoff_frequency();
-        self.mod_env_to_cutoff = region.get_modulation_envelope_to_filter_cutoff_frequency();
-        self.dynamic_cutoff = self.mod_lfo_to_cutoff != 0 || self.mod_env_to_cutoff != 0;
+        self.mod_lfo_to_cutoff = 0;
+        self.mod_env_to_cutoff = 0;
+        self.dynamic_cutoff = false;
 
-        self.mod_lfo_to_volume = region.get_modulation_lfo_to_volume();
-        self.dynamic_volume = self.mod_lfo_to_volume > 0.05_f32;
+        self.mod_lfo_to_volume = 0.0;
+        self.dynamic_volume = false;
 
-        self.instrument_pan = region.get_pan().clamp(-50_f32, 50_f32);
+        self.instrument_pan = 0.0;
         self.instrument_reverb = 0.01_f32 * region.get_reverb_effects_send();
-        self.instrument_chorus = 0.01_f32 * region.get_chorus_effects_send();
+        self.instrument_chorus = 0.0;
 
         start_volume_envelope(&mut self.vol_env, region);
         start_modulation_envelope(&mut self.mod_env, region, velocity);

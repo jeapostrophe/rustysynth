@@ -30,48 +30,12 @@ impl Sound for RegionPair<'_> {
         self.instrument.get_sample_end_loop()
     }
 
-    fn get_modulation_lfo_to_pitch(&self) -> i32 {
-        self.gs(GeneratorType::MODULATION_LFO_TO_PITCH as usize)
-    }
-
-    fn get_vibrato_lfo_to_pitch(&self) -> i32 {
-        self.gs(GeneratorType::VIBRATO_LFO_TO_PITCH as usize)
-    }
-
-    fn get_modulation_envelope_to_pitch(&self) -> i32 {
-        self.gs(GeneratorType::MODULATION_ENVELOPE_TO_PITCH as usize)
-    }
-
     fn get_initial_filter_cutoff_frequency(&self) -> f32 {
         cents_to_hertz(self.gs(GeneratorType::INITIAL_FILTER_CUTOFF_FREQUENCY as usize) as f32)
     }
 
-    fn get_initial_filter_q(&self) -> f32 {
-        0.1_f32 * self.gs(GeneratorType::INITIAL_FILTER_Q as usize) as f32
-    }
-
-    fn get_modulation_lfo_to_filter_cutoff_frequency(&self) -> i32 {
-        self.gs(GeneratorType::MODULATION_LFO_TO_FILTER_CUTOFF_FREQUENCY as usize)
-    }
-
-    fn get_modulation_envelope_to_filter_cutoff_frequency(&self) -> i32 {
-        self.gs(GeneratorType::MODULATION_ENVELOPE_TO_FILTER_CUTOFF_FREQUENCY as usize)
-    }
-
-    fn get_modulation_lfo_to_volume(&self) -> f32 {
-        0.1_f32 * self.gs(GeneratorType::MODULATION_LFO_TO_VOLUME as usize) as f32
-    }
-
-    fn get_chorus_effects_send(&self) -> f32 {
-        0.1_f32 * self.gs(GeneratorType::CHORUS_EFFECTS_SEND as usize) as f32
-    }
-
     fn get_reverb_effects_send(&self) -> f32 {
         0.1_f32 * self.gs(GeneratorType::REVERB_EFFECTS_SEND as usize) as f32
-    }
-
-    fn get_pan(&self) -> f32 {
-        0.1_f32 * self.gs(GeneratorType::PAN as usize) as f32
     }
 
     fn get_delay_modulation_lfo(&self) -> f32 {
