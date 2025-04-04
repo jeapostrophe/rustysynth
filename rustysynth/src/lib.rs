@@ -5,7 +5,6 @@ mod channel;
 mod lfo;
 mod modulation_envelope;
 mod oscillator;
-mod region_ex;
 mod synthesizer;
 mod voice;
 mod voice_collection;
