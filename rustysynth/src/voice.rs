@@ -147,7 +147,7 @@ impl Voice {
         self.instrument_chorus = 0.01_f32 * region.get_chorus_effects_send();
 
         start_volume_envelope(&mut self.vol_env, region);
-        start_modulation_envelope(&mut self.mod_env, region, key, velocity);
+        start_modulation_envelope(&mut self.mod_env, region, velocity);
         start_vibrato(&mut self.vib_lfo, region, key, velocity);
         start_modulation(&mut self.mod_lfo, region, key, velocity);
         start_oscillator(&mut self.oscillator, region);

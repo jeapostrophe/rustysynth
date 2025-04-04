@@ -43,23 +43,14 @@ pub(crate) fn start_volume_envelope<S: Sound>(envelope: &mut VolumeEnvelope, reg
 pub(crate) fn start_modulation_envelope<S: Sound>(
     envelope: &mut ModulationEnvelope,
     region: &S,
-    key: i32,
     velocity: i32,
 ) {
     // According to the implementation of TinySoundFont, the attack time should be adjusted by the velocity.
 
     let delay = region.get_delay_modulation_envelope();
     let attack = region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144_f32);
-    let hold = region.get_hold_modulation_envelope()
-        * key_number_to_multiplying_factor(
-            region.get_key_number_to_modulation_envelope_hold(),
-            key,
-        );
-    let decay = region.get_decay_modulation_envelope()
-        * key_number_to_multiplying_factor(
-            region.get_key_number_to_modulation_envelope_decay(),
-            key,
-        );
+    let hold = region.get_hold_modulation_envelope();
+    let decay = region.get_decay_modulation_envelope();
     let sustain = 1_f32 - region.get_sustain_modulation_envelope() / 100_f32;
     let release = region.get_release_modulation_envelope();
 
