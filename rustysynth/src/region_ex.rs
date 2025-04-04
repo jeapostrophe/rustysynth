@@ -13,7 +13,6 @@ pub(crate) fn start_oscillator<S: Sound>(oscillator: &mut Oscillator, region: &S
     let start_loop = region.get_sample_start_loop();
     let end_loop = region.get_sample_end_loop();
     let root_key = region.get_root_key();
-    let coarse_tune = region.get_coarse_tune();
     let fine_tune = region.get_fine_tune();
 
     oscillator.start(
@@ -24,7 +23,6 @@ pub(crate) fn start_oscillator<S: Sound>(oscillator: &mut Oscillator, region: &S
         start_loop,
         end_loop,
         root_key,
-        coarse_tune,
         fine_tune,
     );
 }

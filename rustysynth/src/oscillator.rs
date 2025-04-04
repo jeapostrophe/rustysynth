@@ -38,7 +38,6 @@ impl Oscillator {
         start_loop: i32,
         end_loop: i32,
         root_key: i32,
-        coarse_tune: i32,
         fine_tune: i32,
     ) {
         self.loop_mode = loop_mode;
@@ -49,7 +48,7 @@ impl Oscillator {
         self.end_loop = end_loop;
         self.root_key = root_key;
 
-        self.tune = coarse_tune as f32 + 0.01_f32 * fine_tune as f32;
+        self.tune = 0.01_f32 * fine_tune as f32;
         self.sample_rate_ratio = sample_rate as f32 / crate::SAMPLE_RATE as f32;
         self.looping = self.loop_mode != LoopMode::NoLoop;
         self.position_fp = (start as i64) << Oscillator::FRAC_BITS;

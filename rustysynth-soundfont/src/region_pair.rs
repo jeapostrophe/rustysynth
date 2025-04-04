@@ -158,10 +158,6 @@ impl Sound for RegionPair<'_> {
         0.1_f32 * self.gs(GeneratorType::INITIAL_ATTENUATION as usize) as f32
     }
 
-    fn get_coarse_tune(&self) -> i32 {
-        self.gs(GeneratorType::COARSE_TUNE as usize)
-    }
-
     fn get_fine_tune(&self) -> i32 {
         self.gs(GeneratorType::FINE_TUNE as usize) + self.instrument.sample_pitch_correction
     }
