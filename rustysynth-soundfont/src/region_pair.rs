@@ -174,10 +174,6 @@ impl Sound for RegionPair<'_> {
         self.gs(GeneratorType::SCALE_TUNING as usize)
     }
 
-    fn get_exclusive_class(&self) -> i32 {
-        self.instrument.get_exclusive_class()
-    }
-
     fn get_root_key(&self) -> i32 {
         self.instrument.get_root_key()
     }

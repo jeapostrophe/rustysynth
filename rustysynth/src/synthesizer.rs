@@ -49,7 +49,6 @@ pub trait Sound {
     fn get_fine_tune(&self) -> i32;
     fn get_sample_modes(&self) -> LoopMode;
     fn get_scale_tuning(&self) -> i32;
-    fn get_exclusive_class(&self) -> i32;
     fn get_root_key(&self) -> i32;
 }
 
@@ -216,9 +215,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
             key,
             velocity,
         ) {
-            if let Some(value) = self.voices.request_new(&region_pair, channel) {
-                value.start(&region_pair, channel, key, velocity)
-            }
+            let value = self.voices.request_new();
+            value.start(&region_pair, channel, key, velocity)
         }
     }
 

@@ -37,7 +37,6 @@ pub(crate) struct Voice {
     pub(crate) current_reverb_send: f32,
     pub(crate) current_chorus_send: f32,
 
-    pub(crate) exclusive_class: i32,
     pub(crate) channel: i32,
     pub(crate) key: i32,
     pub(crate) velocity: i32,
@@ -88,7 +87,6 @@ impl Voice {
             previous_chorus_send: 0_f32,
             current_reverb_send: 0_f32,
             current_chorus_send: 0_f32,
-            exclusive_class: 0,
             channel: 0,
             key: 0,
             velocity: 0,
@@ -113,7 +111,6 @@ impl Voice {
     }
 
     pub(crate) fn start<S: Sound>(&mut self, region: &S, channel: i32, key: i32, velocity: i32) {
-        self.exclusive_class = region.get_exclusive_class();
         self.channel = channel;
         self.key = key;
         self.velocity = velocity;

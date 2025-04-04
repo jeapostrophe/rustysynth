@@ -1,5 +1,4 @@
 use crate::channel::Channel;
-use crate::synthesizer::Sound;
 use crate::voice::Voice;
 
 #[derive(Debug)]
@@ -21,24 +20,12 @@ impl VoiceCollection {
         }
     }
 
-    pub(crate) fn request_new<S: Sound>(&mut self, region: &S, channel: i32) -> Option<&mut Voice> {
-        // If an exclusive class is assigned to the region, find a voice with the same class.
-        // If found, reuse it to avoid playing multiple voices with the same class at a time.
-        let exclusive_class = region.get_exclusive_class();
-        if exclusive_class != 0 {
-            for i in 0..self.active_voice_count {
-                let voice = &self.voices[i];
-                if voice.exclusive_class == exclusive_class && voice.channel == channel {
-                    return Some(&mut self.voices[i]);
-                }
-            }
-        }
-
+    pub(crate) fn request_new(&mut self) -> &mut Voice {
         // If the number of active voices is less than the limit, use a free one.
         if (self.active_voice_count) < self.voices.len() {
             let i = self.active_voice_count;
             self.active_voice_count += 1;
-            return Some(&mut self.voices[i]);
+            return &mut self.voices[i];
         }
 
         // Too many active voices...
@@ -59,7 +46,7 @@ impl VoiceCollection {
                 }
             }
         }
-        Some(&mut self.voices[candidate])
+        &mut self.voices[candidate]
     }
 
     pub(crate) fn process(&mut self, data: &[i16], channels: &[Channel]) {
