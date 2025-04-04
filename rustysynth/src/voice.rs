@@ -127,6 +127,7 @@ impl Voice {
         }
 
         self.cutoff = region.get_initial_filter_cutoff_frequency();
+        // XXX remove constant fields
         self.resonance = 1.0;
 
         self.vib_lfo_to_pitch = 0.0;
@@ -138,7 +139,7 @@ impl Voice {
         self.dynamic_cutoff = false;
 
         self.mod_lfo_to_volume = 0.0;
-        self.dynamic_volume = false;
+        self.dynamic_volume = self.mod_lfo_to_volume > 0.05_f32;
 
         self.instrument_pan = 0.0;
         self.instrument_reverb = 0.01_f32 * region.get_reverb_effects_send();
