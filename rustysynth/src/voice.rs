@@ -76,8 +76,8 @@ pub(crate) struct Voice {
     pub(crate) voice_length: usize,
 }
 
-impl Voice {
-    pub(crate) fn new() -> Self {
+impl Default for Voice {
+    fn default() -> Self {
         Self {
             vol_env: VolumeEnvelope::default(),
             mod_env: ModulationEnvelope::default(),
@@ -116,7 +116,9 @@ impl Voice {
             voice_length: 0,
         }
     }
+}
 
+impl Voice {
     pub(crate) fn start<S: Sound>(&mut self, region: &S, channel: i32, key: i32, velocity: i32) {
         self.channel = channel;
         self.key = key;

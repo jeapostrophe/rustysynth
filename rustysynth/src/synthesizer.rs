@@ -130,7 +130,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             channels.push(Channel::new(i == PERCUSSION_CHANNEL));
         }
 
-        let voices = VoiceCollection::new();
+        let voices = VoiceCollection::default();
 
         let block_left = [0_f32; crate::BLOCK_SIZE];
         let block_right = [0_f32; crate::BLOCK_SIZE];
@@ -178,7 +178,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
     set_channel!(set_pitch_bend, u16);
 
     pub fn note_off(&mut self, channel: i32, key: i32) {
-        for voice in self.voices.get_active_voices().iter_mut() {
+        for voice in &mut self.voices.0 {
             if voice.channel == channel && voice.key == key {
                 voice.end();
             }
@@ -208,14 +208,14 @@ impl<Source: SoundSource> Synthesizer<Source> {
         if immediate {
             self.voices.clear();
         } else {
-            for voice in self.voices.get_active_voices().iter_mut() {
+            for voice in &mut self.voices.0 {
                 voice.end();
             }
         }
     }
 
     pub fn note_off_all_channel(&mut self, channel: i32, immediate: bool) {
-        for voice in self.voices.get_active_voices().iter_mut() {
+        for voice in &mut self.voices.0 {
             if voice.channel == channel {
                 if immediate {
                     voice.kill();
@@ -283,7 +283,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         self.block_left.fill(0_f32);
         self.block_right.fill(0_f32);
-        for voice in self.voices.get_active_voices().iter_mut() {
+        for voice in &self.voices.0 {
             let previous_gain_left = self.master_volume * voice.previous_mix_gain_left;
             let current_gain_left = self.master_volume * voice.current_mix_gain_left;
             array_math::write_block(
@@ -313,7 +313,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             let chorus_output_right = &mut effects.chorus_output_right[..];
             chorus_input_left.fill(0_f32);
             chorus_input_right.fill(0_f32);
-            for voice in self.voices.get_active_voices().iter_mut() {
+            for voice in &self.voices.0 {
                 let previous_gain_left = voice.previous_chorus_send * voice.previous_mix_gain_left;
                 let current_gain_left = voice.current_chorus_send * voice.current_mix_gain_left;
                 array_math::write_block(
@@ -356,7 +356,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             let reverb_output_left = &mut effects.reverb_output_left[..];
             let reverb_output_right = &mut effects.reverb_output_right[..];
             reverb_input.fill(0_f32);
-            for voice in self.voices.get_active_voices().iter_mut() {
+            for voice in &self.voices.0 {
                 let previous_gain = reverb.get_input_gain()
                     * voice.previous_reverb_send
                     * (voice.previous_mix_gain_left + voice.previous_mix_gain_right);
