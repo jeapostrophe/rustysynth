@@ -9,6 +9,7 @@ pub(crate) struct VoiceCollection {
 
 impl VoiceCollection {
     pub(crate) fn new() -> Self {
+        // XXX don't preallocate and just use a normal vector
         let mut voices: Vec<Voice> = Vec::new();
         for _i in 0..crate::MAXIMUM_POLYPHONY {
             voices.push(Voice::new());
@@ -57,7 +58,9 @@ impl VoiceCollection {
                 return;
             }
 
-            if self.voices[i].process(data, channels) {
+            let voice = &mut self.voices[i];
+            let channel_info = &channels[voice.channel as usize];
+            if voice.process(data, channel_info) {
                 i += 1;
             } else {
                 self.active_voice_count -= 1;

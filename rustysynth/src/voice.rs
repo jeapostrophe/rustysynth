@@ -206,12 +206,10 @@ impl Voice {
         self.note_gain = 0_f32;
     }
 
-    pub(crate) fn process(&mut self, data: &[i16], channels: &[Channel]) -> bool {
+    pub(crate) fn process(&mut self, data: &[i16], channel_info: &Channel) -> bool {
         if self.note_gain < NON_AUDIBLE {
             return false;
         }
-
-        let channel_info = &channels[self.channel as usize];
 
         self.release_if_necessary(channel_info);
 
