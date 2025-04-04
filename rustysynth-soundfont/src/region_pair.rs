@@ -150,10 +150,6 @@ impl Sound for RegionPair<'_> {
         self.gs(GeneratorType::KEY_NUMBER_TO_VOLUME_ENVELOPE_HOLD as usize)
     }
 
-    fn get_key_number_to_volume_envelope_decay(&self) -> i32 {
-        self.gs(GeneratorType::KEY_NUMBER_TO_VOLUME_ENVELOPE_DECAY as usize)
-    }
-
     fn get_initial_attenuation(&self) -> f32 {
         0.1_f32 * self.gs(GeneratorType::INITIAL_ATTENUATION as usize) as f32
     }

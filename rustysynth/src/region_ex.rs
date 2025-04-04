@@ -39,8 +39,7 @@ pub(crate) fn start_volume_envelope<S: Sound>(
     let attack = region.get_attack_volume_envelope();
     let hold = region.get_hold_volume_envelope()
         * key_number_to_multiplying_factor(region.get_key_number_to_volume_envelope_hold(), key);
-    let decay = region.get_decay_volume_envelope()
-        * key_number_to_multiplying_factor(region.get_key_number_to_volume_envelope_decay(), key);
+    let decay = region.get_decay_volume_envelope();
     let sustain = decibels_to_linear(-region.get_sustain_volume_envelope());
     let release = region.get_release_volume_envelope().max(0.01_f32);
 
