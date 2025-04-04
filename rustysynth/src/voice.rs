@@ -9,6 +9,14 @@ use crate::volume_envelope::VolumeEnvelope;
 use crate::Block;
 use std::f32::consts;
 
+#[derive(Debug, Default, Eq, PartialEq)]
+enum VoiceState {
+    #[default]
+    Playing,
+    ReleaseRequested,
+    Released,
+}
+
 #[derive(Debug)]
 pub(crate) struct Voice {
     vol_env: VolumeEnvelope,
@@ -144,11 +152,41 @@ impl Voice {
         self.instrument_reverb = 0.01_f32 * region.get_reverb_effects_send();
         self.instrument_chorus = 0.0;
 
-        start_volume_envelope(&mut self.vol_env, region);
-        start_modulation_envelope(&mut self.mod_env, region, velocity);
-        start_vibrato(&mut self.vib_lfo, region, key, velocity);
-        start_modulation(&mut self.mod_lfo, region, key, velocity);
-        start_oscillator(&mut self.oscillator, region);
+        self.vol_env.start(
+            region.get_delay_volume_envelope(),
+            region.get_attack_volume_envelope(),
+            region.get_hold_volume_envelope(),
+            region.get_decay_volume_envelope(),
+            decibels_to_linear(-region.get_sustain_volume_envelope()),
+            // If the release time is shorter than 10 ms, it will be clamped to 10 ms to avoid pop noise.
+            region.get_release_volume_envelope().max(0.01_f32),
+        );
+        self.mod_env.start(
+            region.get_delay_modulation_envelope(),
+            // According to the implementation of TinySoundFont, the attack time should be adjusted by the velocity.
+            region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144_f32),
+            region.get_hold_modulation_envelope(),
+            region.get_decay_modulation_envelope(),
+            region.get_release_modulation_envelope(),
+        );
+        self.vib_lfo.start(
+            region.get_delay_vibrato_lfo(),
+            region.get_frequency_vibrato_lfo(),
+        );
+        self.mod_lfo.start(
+            region.get_delay_modulation_lfo(),
+            region.get_frequency_modulation_lfo(),
+        );
+        self.oscillator.start(
+            region.get_sample_modes(),
+            region.sample_sample_rate(),
+            region.get_sample_start(),
+            region.get_sample_end(),
+            region.get_sample_start_loop(),
+            region.get_sample_end_loop(),
+            region.get_root_key(),
+            region.get_fine_tune(),
+        );
         self.filter.clear_buffer();
         self.filter.set_low_pass_filter(self.cutoff, self.resonance);
 
@@ -278,77 +316,4 @@ impl Voice {
             self.vol_env.priority
         }
     }
-}
-
-#[derive(Debug, Default, Eq, PartialEq)]
-enum VoiceState {
-    #[default]
-    Playing,
-    ReleaseRequested,
-    Released,
-}
-
-fn start_oscillator<S: Sound>(oscillator: &mut Oscillator, region: &S) {
-    let sample_rate = region.sample_sample_rate();
-    let loop_mode = region.get_sample_modes();
-    let start = region.get_sample_start();
-    let end = region.get_sample_end();
-    let start_loop = region.get_sample_start_loop();
-    let end_loop = region.get_sample_end_loop();
-    let root_key = region.get_root_key();
-    let fine_tune = region.get_fine_tune();
-
-    oscillator.start(
-        loop_mode,
-        sample_rate,
-        start,
-        end,
-        start_loop,
-        end_loop,
-        root_key,
-        fine_tune,
-    );
-}
-
-fn start_volume_envelope<S: Sound>(envelope: &mut VolumeEnvelope, region: &S) {
-    // If the release time is shorter than 10 ms, it will be clamped to 10 ms to avoid pop noise.
-
-    let delay = region.get_delay_volume_envelope();
-    let attack = region.get_attack_volume_envelope();
-    let hold = region.get_hold_volume_envelope();
-    let decay = region.get_decay_volume_envelope();
-    let sustain = decibels_to_linear(-region.get_sustain_volume_envelope());
-    let release = region.get_release_volume_envelope().max(0.01_f32);
-
-    envelope.start(delay, attack, hold, decay, sustain, release);
-}
-
-fn start_modulation_envelope<S: Sound>(
-    envelope: &mut ModulationEnvelope,
-    region: &S,
-    velocity: i32,
-) {
-    // According to the implementation of TinySoundFont, the attack time should be adjusted by the velocity.
-
-    let delay = region.get_delay_modulation_envelope();
-    let attack = region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144_f32);
-    let hold = region.get_hold_modulation_envelope();
-    let decay = region.get_decay_modulation_envelope();
-    let release = region.get_release_modulation_envelope();
-
-    envelope.start(delay, attack, hold, decay, release);
-}
-
-fn start_vibrato<S: Sound>(lfo: &mut Lfo, region: &S, _key: i32, _velocity: i32) {
-    lfo.start(
-        region.get_delay_vibrato_lfo(),
-        region.get_frequency_vibrato_lfo(),
-    );
-}
-
-fn start_modulation<S: Sound>(lfo: &mut Lfo, region: &S, _key: i32, _velocity: i32) {
-    lfo.start(
-        region.get_delay_modulation_lfo(),
-        region.get_frequency_modulation_lfo(),
-    );
 }
