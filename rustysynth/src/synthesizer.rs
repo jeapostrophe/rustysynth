@@ -42,7 +42,6 @@ pub trait Sound {
     fn get_decay_volume_envelope(&self) -> f32;
     fn get_sustain_volume_envelope(&self) -> f32;
     fn get_release_volume_envelope(&self) -> f32;
-    fn get_key_number_to_volume_envelope_hold(&self) -> i32;
     fn get_initial_attenuation(&self) -> f32;
     fn get_fine_tune(&self) -> i32;
     fn get_sample_modes(&self) -> LoopMode;

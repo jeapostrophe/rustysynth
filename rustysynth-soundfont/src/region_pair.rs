@@ -146,10 +146,6 @@ impl Sound for RegionPair<'_> {
         timecents_to_seconds(self.gs(GeneratorType::RELEASE_VOLUME_ENVELOPE as usize) as f32)
     }
 
-    fn get_key_number_to_volume_envelope_hold(&self) -> i32 {
-        self.gs(GeneratorType::KEY_NUMBER_TO_VOLUME_ENVELOPE_HOLD as usize)
-    }
-
     fn get_initial_attenuation(&self) -> f32 {
         0.1_f32 * self.gs(GeneratorType::INITIAL_ATTENUATION as usize) as f32
     }

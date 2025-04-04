@@ -27,18 +27,12 @@ pub(crate) fn start_oscillator<S: Sound>(oscillator: &mut Oscillator, region: &S
     );
 }
 
-pub(crate) fn start_volume_envelope<S: Sound>(
-    envelope: &mut VolumeEnvelope,
-    region: &S,
-    key: i32,
-    _velocity: i32,
-) {
+pub(crate) fn start_volume_envelope<S: Sound>(envelope: &mut VolumeEnvelope, region: &S) {
     // If the release time is shorter than 10 ms, it will be clamped to 10 ms to avoid pop noise.
 
     let delay = region.get_delay_volume_envelope();
     let attack = region.get_attack_volume_envelope();
-    let hold = region.get_hold_volume_envelope()
-        * key_number_to_multiplying_factor(region.get_key_number_to_volume_envelope_hold(), key);
+    let hold = region.get_hold_volume_envelope();
     let decay = region.get_decay_volume_envelope();
     let sustain = decibels_to_linear(-region.get_sustain_volume_envelope());
     let release = region.get_release_volume_envelope().max(0.01_f32);
