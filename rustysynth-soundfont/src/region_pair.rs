@@ -170,10 +170,6 @@ impl Sound for RegionPair<'_> {
         self.instrument.get_sample_modes()
     }
 
-    fn get_scale_tuning(&self) -> i32 {
-        self.gs(GeneratorType::SCALE_TUNING as usize)
-    }
-
     fn get_root_key(&self) -> i32 {
         self.instrument.get_root_key()
     }

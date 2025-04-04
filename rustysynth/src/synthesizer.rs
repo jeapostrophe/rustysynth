@@ -48,7 +48,6 @@ pub trait Sound {
     fn get_coarse_tune(&self) -> i32;
     fn get_fine_tune(&self) -> i32;
     fn get_sample_modes(&self) -> LoopMode;
-    fn get_scale_tuning(&self) -> i32;
     fn get_root_key(&self) -> i32;
 }
 

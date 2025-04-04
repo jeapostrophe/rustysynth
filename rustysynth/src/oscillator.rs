@@ -16,7 +16,6 @@ pub(crate) struct Oscillator {
     root_key: i32,
 
     tune: f32,
-    pitch_change_scale: f32,
     sample_rate_ratio: f32,
 
     looping: bool,
@@ -41,7 +40,6 @@ impl Oscillator {
         root_key: i32,
         coarse_tune: i32,
         fine_tune: i32,
-        scale_tuning: i32,
     ) {
         self.loop_mode = loop_mode;
         self.sample_sample_rate = sample_rate;
@@ -52,7 +50,6 @@ impl Oscillator {
         self.root_key = root_key;
 
         self.tune = coarse_tune as f32 + 0.01_f32 * fine_tune as f32;
-        self.pitch_change_scale = 0.01_f32 * scale_tuning as f32;
         self.sample_rate_ratio = sample_rate as f32 / crate::SAMPLE_RATE as f32;
         self.looping = self.loop_mode != LoopMode::NoLoop;
         self.position_fp = (start as i64) << Oscillator::FRAC_BITS;
@@ -65,7 +62,7 @@ impl Oscillator {
     }
 
     pub(crate) fn process(&mut self, data: &[i16], block: &mut [f32], pitch: f32) -> bool {
-        let pitch_change = self.pitch_change_scale * (pitch - self.root_key as f32) + self.tune;
+        let pitch_change = (pitch - self.root_key as f32) + self.tune;
         let pitch_ratio = self.sample_rate_ratio * 2_f32.powf(pitch_change / 12_f32);
         self.fill_block(data, block, pitch_ratio as f64)
     }
