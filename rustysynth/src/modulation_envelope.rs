@@ -14,7 +14,6 @@ pub(crate) struct ModulationEnvelope {
     decay_end_time: f64,
     release_end_time: f64,
 
-    sustain_level: f32,
     release_level: f32,
 
     processed_sample_count: usize,
@@ -23,18 +22,11 @@ pub(crate) struct ModulationEnvelope {
 }
 
 impl ModulationEnvelope {
-    pub(crate) fn start(
-        &mut self,
-        delay: f32,
-        attack: f32,
-        hold: f32,
-        decay: f32,
-        sustain: f32,
-        release: f32,
-    ) {
-        self.attack_slope = 1_f64 / attack as f64;
-        self.decay_slope = 1_f64 / decay as f64;
-        self.release_slope = 1_f64 / release as f64;
+    // XXX rm as and switch to f64
+    pub(crate) fn start(&mut self, delay: f32, attack: f32, hold: f32, decay: f32, release: f32) {
+        self.attack_slope = 1.0 / attack as f64;
+        self.decay_slope = 1.0 / decay as f64;
+        self.release_slope = 1.0 / release as f64;
 
         self.attack_start_time = delay as f64;
         self.hold_start_time = self.attack_start_time + attack as f64;
@@ -43,12 +35,11 @@ impl ModulationEnvelope {
         self.decay_end_time = self.decay_start_time + decay as f64;
         self.release_end_time = release as f64;
 
-        self.sustain_level = sustain.clamp(0_f32, 1_f32);
-        self.release_level = 0_f32;
+        self.release_level = 0.0;
 
         self.processed_sample_count = 0;
         self.stage = EnvelopeStage::DELAY;
-        self.value = 0_f32;
+        self.value = 0.0;
 
         self.process(0);
     }
@@ -81,7 +72,7 @@ impl ModulationEnvelope {
 
         match self.stage {
             EnvelopeStage::DELAY => {
-                self.value = 0_f32;
+                self.value = 0.0;
                 true
             }
             EnvelopeStage::ATTACK => {
@@ -89,19 +80,19 @@ impl ModulationEnvelope {
                 true
             }
             EnvelopeStage::HOLD => {
-                self.value = 1_f32;
+                self.value = 1.0;
                 true
             }
             EnvelopeStage::DECAY => {
-                self.value = ((self.decay_slope * (self.decay_end_time - current_time)) as f32)
-                    .max(self.sustain_level);
+                self.value =
+                    ((self.decay_slope * (self.decay_end_time - current_time)) as f32).max(1.0);
                 self.value > NON_AUDIBLE
             }
             EnvelopeStage::RELEASE => {
                 self.value = ((self.release_level as f64
                     * self.release_slope
                     * (self.release_end_time - current_time)) as f32)
-                    .max(0_f32);
+                    .max(0.0);
                 self.value > NON_AUDIBLE
             }
         }

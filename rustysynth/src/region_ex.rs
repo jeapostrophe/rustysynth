@@ -51,10 +51,9 @@ pub(crate) fn start_modulation_envelope<S: Sound>(
     let attack = region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144_f32);
     let hold = region.get_hold_modulation_envelope();
     let decay = region.get_decay_modulation_envelope();
-    let sustain = 1_f32 - region.get_sustain_modulation_envelope() / 100_f32;
     let release = region.get_release_modulation_envelope();
 
-    envelope.start(delay, attack, hold, decay, sustain, release);
+    envelope.start(delay, attack, hold, decay, release);
 }
 
 pub(crate) fn start_vibrato<S: Sound>(lfo: &mut Lfo, region: &S, _key: i32, _velocity: i32) {

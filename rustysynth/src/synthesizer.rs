@@ -32,7 +32,6 @@ pub trait Sound {
     fn get_attack_modulation_envelope(&self) -> f32;
     fn get_hold_modulation_envelope(&self) -> f32;
     fn get_decay_modulation_envelope(&self) -> f32;
-    fn get_sustain_modulation_envelope(&self) -> f32;
     fn get_release_modulation_envelope(&self) -> f32;
     fn get_delay_volume_envelope(&self) -> f32;
     fn get_attack_volume_envelope(&self) -> f32;

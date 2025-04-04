@@ -105,11 +105,6 @@ impl Sound for RegionPair<'_> {
     fn get_decay_modulation_envelope(&self) -> f32 {
         timecents_to_seconds(self.gs(GeneratorType::DECAY_MODULATION_ENVELOPE as usize) as f32)
     }
-
-    fn get_sustain_modulation_envelope(&self) -> f32 {
-        0.1_f32 * self.gs(GeneratorType::SUSTAIN_MODULATION_ENVELOPE as usize) as f32
-    }
-
     fn get_release_modulation_envelope(&self) -> f32 {
         timecents_to_seconds(self.gs(GeneratorType::RELEASE_MODULATION_ENVELOPE as usize) as f32)
     }
