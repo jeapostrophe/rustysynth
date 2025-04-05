@@ -48,16 +48,14 @@ pub trait SoundSource {
 }
 
 #[derive(Debug)]
-pub struct Synthesizer<Source> {
+pub struct Synthesizer<Source, const CHANNELS: usize = 8, const VOICES: usize = 16> {
     pub(crate) sound_font: Source,
-    channels: Vec<Channel>,
-    voices: Vec<Voice>,
+    channels: [Channel; CHANNELS],
+    voices: [Voice; VOICES],
     master_volume: f32,
     reverb: Reverb,
     chorus: Chorus,
 }
-
-pub const CHANNELS: usize = 16;
 
 macro_rules! set_channel {
     ($synth_fun:ident) => {
@@ -70,20 +68,17 @@ macro_rules! set_channel {
     };
 }
 
-impl<Source: SoundSource> Synthesizer<Source> {
+impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
+    Synthesizer<Source, CHANNELS, VOICES>
+{
     pub fn new<S>(sound_font_pre: S) -> Self
     where
         Source: From<S>,
     {
-        let mut channels: Vec<Channel> = Vec::new();
-        for _ in 0..CHANNELS {
-            channels.push(Channel::default());
-        }
-
         Self {
             sound_font: sound_font_pre.into(),
-            channels,
-            voices: Vec::new(),
+            channels: core::array::from_fn(|_| Channel::default()),
+            voices: core::array::from_fn(|_| Voice::default()),
             master_volume: 0.5,
             reverb: Reverb::default(),
             chorus: Chorus::default(),
@@ -140,46 +135,37 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
     fn allocate_voice(&mut self) -> usize {
         let voices = &mut self.voices;
-        let mut candidate: usize = voices.len();
+        let mut candidate: usize = 0;
 
-        // If the number of active voices is less than the limit, use a free one.
-        if candidate < crate::MAXIMUM_POLYPHONY {
-            voices.push(Voice::default());
-        } else {
-            // Too many active voices...
-            // Find one which has the lowest priority.
-            let mut lowest_priority = f32::MAX;
-            for i in 0..voices.len() {
-                let voice = &voices[i];
-                let priority = voice.get_priority();
-                if priority < lowest_priority {
-                    lowest_priority = priority;
+        // XXX use a simpler way to do this like .iter().min_by()
+        // Too many active voices...
+        // Find one which has the lowest priority.
+        let mut lowest_priority = f32::MAX;
+        for i in 0..voices.len() {
+            let voice = &voices[i];
+            let priority = voice.get_priority();
+            if priority < lowest_priority {
+                lowest_priority = priority;
+                candidate = i;
+            } else if priority == lowest_priority {
+                // Same priority...
+                // The older one should be more suitable for reuse.
+                if voice.voice_length > voices[candidate].voice_length {
                     candidate = i;
-                } else if priority == lowest_priority {
-                    // Same priority...
-                    // The older one should be more suitable for reuse.
-                    if voice.voice_length > voices[candidate].voice_length {
-                        candidate = i;
-                    }
                 }
             }
         }
+
         candidate
     }
 
-    pub fn note_off_all(&mut self, immediate: bool) {
-        if immediate {
-            self.voices.clear();
-        } else {
-            for voice in &mut self.voices {
-                voice.end();
-            }
-        }
-    }
-
-    pub fn note_off_all_channel(&mut self, channel: i32, immediate: bool) {
+    fn note_off_all_(&mut self, channel: Option<i32>, immediate: bool) {
         for voice in &mut self.voices {
-            if voice.channel == channel {
+            let select = match channel {
+                Some(ch) => voice.channel == ch,
+                None => true,
+            };
+            if select {
                 if immediate {
                     voice.kill();
                 } else {
@@ -187,6 +173,14 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 }
             }
         }
+    }
+
+    pub fn note_off_all(&mut self, immediate: bool) {
+        self.note_off_all_(None, immediate);
+    }
+
+    pub fn note_off_all_channel(&mut self, channel: i32, immediate: bool) {
+        self.note_off_all_(Some(channel), immediate);
     }
 
     pub fn reset_all_controllers(&mut self) {
@@ -201,7 +195,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
     pub fn reset(&mut self) {
         self.master_volume = 0.5;
-        self.voices.clear();
+        self.note_off_all_(None, true);
         for channel in &mut self.channels {
             channel.reset();
         }
@@ -235,11 +229,11 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         let data = self.sound_font.wave_data();
 
-        self.voices.retain_mut(|voice| {
+        for voice in &mut self.voices {
             let channel_info = &self.channels[voice.channel as usize];
             let vo = voice.render(data, channel_info);
             if vo.is_none() {
-                return false;
+                continue;
             }
             let voice_out = vo.unwrap();
             // Normal output
@@ -285,8 +279,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 &mut reverb_input,
             );
             */
-            true
-        });
+        }
 
         /* XXX
                 let (chorus_output_left, chorus_output_right) =

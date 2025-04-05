@@ -105,4 +105,14 @@ impl VolumeEnvelope {
         };
         (self.value, outb)
     }
+
+    pub(crate) fn get_priority(&self) -> f32 {
+        match self.stage {
+            EnvelopeStage::DELAY => 5.0,
+            EnvelopeStage::ATTACK => 4.0,
+            EnvelopeStage::HOLD => 3.0,
+            EnvelopeStage::DECAY => 2.0,
+            EnvelopeStage::RELEASE => 1.0,
+        }
+    }
 }
