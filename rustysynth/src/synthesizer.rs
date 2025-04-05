@@ -35,13 +35,7 @@ pub trait Sound {
 }
 
 pub trait SoundSource {
-    fn get_regions(
-        &mut self,
-        bank_id: i32,
-        patch_id: i32,
-        key: i32,
-        velocity: i32,
-    ) -> Result<impl Sound>;
+    fn get_sound(&mut self, id: u16, key: i32, velocity: i32) -> Result<impl Sound>;
 }
 
 #[derive(Debug)]
@@ -59,7 +53,7 @@ macro_rules! set_channel {
     };
     ($synth_fun:ident, $value_ty:ident) => {
         pub fn $synth_fun(&mut self, channel: u8, value: $value_ty) {
-            self.channels[channel as usize].$synth_fun(value.into());
+            self.channels[channel as usize].$synth_fun(value);
         }
     };
 }
@@ -118,12 +112,10 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
         let voice_idx = self.allocate_voice();
         let channel_info = &self.channels[channel as usize];
 
-        if let Ok(region_pair) = self.sound_font.get_regions(
-            channel_info.get_bank_number(),
-            channel_info.get_patch_number(),
-            key,
-            velocity,
-        ) {
+        if let Ok(region_pair) =
+            self.sound_font
+                .get_sound(channel_info.get_preset_id(), key, velocity)
+        {
             self.voices[voice_idx].start(&region_pair, channel, key, velocity)
         }
     }
@@ -135,7 +127,7 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
         // XXX use a simpler way to do this like .iter().min_by()
         // Too many active voices...
         // Find one which has the lowest priority.
-        let mut lowest_priority = f32::MAX;
+        let mut lowest_priority = std::u8::MAX;
         for i in 0..voices.len() {
             let voice = &voices[i];
             let priority = voice.get_priority();
@@ -275,9 +267,12 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
                 multiply_add1(self.master_volume, chorus_output_right, &mut right);
 
         */
-        let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
-        multiply_add1(self.master_volume, reverb_output_left, &mut left);
-        multiply_add1(self.master_volume, reverb_output_right, &mut right);
+
+        if false {
+            let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
+            multiply_add1(self.master_volume, reverb_output_left, &mut left);
+            multiply_add1(self.master_volume, reverb_output_right, &mut right);
+        }
 
         (left, right)
     }

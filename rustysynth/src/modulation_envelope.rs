@@ -21,18 +21,17 @@ pub(crate) struct ModulationEnvelope {
 }
 
 impl ModulationEnvelope {
-    // XXX rm as in code and switch args to f64
-    pub(crate) fn start(&mut self, delay: f32, attack: f32, hold: f32, decay: f32, release: f32) {
-        self.attack_slope = 1.0 / attack as f64;
-        self.decay_slope = 1.0 / decay as f64;
-        self.release_slope = 1.0 / release as f64;
+    pub(crate) fn start(&mut self, delay: f64, attack: f64, hold: f64, decay: f64, release: f64) {
+        self.attack_slope = 1.0 / attack;
+        self.decay_slope = 1.0 / decay;
+        self.release_slope = 1.0 / release;
 
-        self.attack_start_time = delay as f64;
-        self.hold_start_time = self.attack_start_time + attack as f64;
-        self.decay_start_time = self.hold_start_time + hold as f64;
+        self.attack_start_time = delay;
+        self.hold_start_time = self.attack_start_time + attack;
+        self.decay_start_time = self.hold_start_time + hold;
 
-        self.decay_end_time = self.decay_start_time + decay as f64;
-        self.release_end_time = release as f64;
+        self.decay_end_time = self.decay_start_time + decay;
+        self.release_end_time = release;
 
         self.release_level = 0.0;
 

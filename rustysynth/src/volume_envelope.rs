@@ -23,20 +23,20 @@ pub(crate) struct VolumeEnvelope {
 impl VolumeEnvelope {
     pub(crate) fn start(
         &mut self,
-        delay: f32,
-        attack: f32,
-        hold: f32,
-        decay: f32,
+        delay: f64,
+        attack: f64,
+        hold: f64,
+        decay: f64,
         sustain: f32,
-        release: f32,
+        release: f64,
     ) {
-        self.attack_slope = 1.0 / attack as f64;
-        self.decay_slope = -9.226 / decay as f64;
-        self.release_slope = -9.226 / release as f64;
+        self.attack_slope = 1.0 / attack;
+        self.decay_slope = -9.226 / decay;
+        self.release_slope = -9.226 / release;
 
-        self.attack_start_time = delay as f64;
-        self.hold_start_time = self.attack_start_time + attack as f64;
-        self.decay_start_time = self.hold_start_time + hold as f64;
+        self.attack_start_time = delay;
+        self.hold_start_time = self.attack_start_time + attack;
+        self.decay_start_time = self.hold_start_time + hold;
         self.release_start_time = 0.0;
 
         self.sustain_level = sustain.clamp(0.0, 1.0);
@@ -106,13 +106,7 @@ impl VolumeEnvelope {
         (self.value, outb)
     }
 
-    pub(crate) fn get_priority(&self) -> f32 {
-        match self.stage {
-            EnvelopeStage::DELAY => 5.0,
-            EnvelopeStage::ATTACK => 4.0,
-            EnvelopeStage::HOLD => 3.0,
-            EnvelopeStage::DECAY => 2.0,
-            EnvelopeStage::RELEASE => 1.0,
-        }
+    pub(crate) fn get_priority(&self) -> u8 {
+        self.stage.get_priority()
     }
 }

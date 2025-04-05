@@ -80,13 +80,9 @@ impl From<SoundFont> for SoundFontProc {
 
 impl SoundSource for SoundFontProc {
     #[allow(refining_impl_trait)]
-    fn get_regions(
-        &mut self,
-        bank_id: i32,
-        patch_id: i32,
-        key: i32,
-        velocity: i32,
-    ) -> Result<RegionPair> {
+    fn get_sound(&mut self, preset_id: u16, key: i32, velocity: i32) -> Result<RegionPair> {
+        let bank_id = (preset_id >> 8) as i32;
+        let patch_id = (preset_id & 0xFF) as i32;
         let preset_id = (bank_id << 16) | patch_id;
         let mut preset = self.default_preset;
         match self.preset_lookup.get(&preset_id) {

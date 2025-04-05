@@ -109,29 +109,29 @@ impl Voice {
         self.instrument_chorus = 0.0;
 
         self.vol_env.start(
-            region.get_delay_volume_envelope(),
-            region.get_attack_volume_envelope(),
-            region.get_hold_volume_envelope(),
-            region.get_decay_volume_envelope(),
+            region.get_delay_volume_envelope() as f64,
+            region.get_attack_volume_envelope() as f64,
+            region.get_hold_volume_envelope() as f64,
+            region.get_decay_volume_envelope() as f64,
             decibels_to_linear(-region.get_sustain_volume_envelope()),
             // If the release time is shorter than 10 ms, it will be clamped to 10 ms to avoid pop noise.
-            region.get_release_volume_envelope().max(0.01),
+            region.get_release_volume_envelope().max(0.01) as f64,
         );
         self.mod_env.start(
-            region.get_delay_modulation_envelope(),
+            region.get_delay_modulation_envelope() as f64,
             // According to the implementation of TinySoundFont, the attack time should be adjusted by the velocity.
-            region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144.0),
-            region.get_hold_modulation_envelope(),
-            region.get_decay_modulation_envelope(),
-            region.get_release_modulation_envelope(),
+            region.get_attack_modulation_envelope() as f64 * ((145 - velocity) as f64 / 144.0),
+            region.get_hold_modulation_envelope() as f64,
+            region.get_decay_modulation_envelope() as f64,
+            region.get_release_modulation_envelope() as f64,
         );
         self.vib_lfo.start(
-            region.get_delay_vibrato_lfo(),
-            region.get_frequency_vibrato_lfo(),
+            region.get_delay_vibrato_lfo() as f64,
+            region.get_frequency_vibrato_lfo() as f64,
         );
         self.mod_lfo.start(
-            region.get_delay_modulation_lfo(),
-            region.get_frequency_modulation_lfo(),
+            region.get_delay_modulation_lfo() as f64,
+            region.get_frequency_modulation_lfo() as f64,
         );
         self.oscillator.start(
             region.get_wave_data(),
@@ -265,11 +265,11 @@ impl Voice {
         }
     }
 
-    pub(crate) fn get_priority(&self) -> f32 {
+    pub(crate) fn get_priority(&self) -> u8 {
         if self.note_gain < NON_AUDIBLE {
-            0.0
+            0
         } else {
-            1.0 + self.vol_env.get_priority()
+            1 + self.vol_env.get_priority()
         }
     }
 }

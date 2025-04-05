@@ -51,4 +51,13 @@ impl EnvelopeStage {
             EnvelopeStage::RELEASE => EnvelopeStage::RELEASE,
         };
     }
+    pub(crate) fn get_priority(&self) -> u8 {
+        match self {
+            EnvelopeStage::DELAY => 5,
+            EnvelopeStage::ATTACK => 4,
+            EnvelopeStage::HOLD => 3,
+            EnvelopeStage::DECAY => 2,
+            EnvelopeStage::RELEASE => 1,
+        }
+    }
 }

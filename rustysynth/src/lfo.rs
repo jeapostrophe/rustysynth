@@ -1,21 +1,19 @@
 #[derive(Debug, Default)]
 pub(crate) struct Lfo {
     active: bool,
-
     delay: f64,
     period: f64,
-
     current_time: f64,
     value: f32,
 }
 
 impl Lfo {
-    pub(crate) fn start(&mut self, delay: f32, frequency: f32) {
+    pub(crate) fn start(&mut self, delay: f64, frequency: f64) {
         if frequency > 1.0E-3 {
             self.active = true;
 
-            self.delay = delay as f64;
-            self.period = 1.0 / frequency as f64;
+            self.delay = delay;
+            self.period = 1.0 / frequency;
 
             self.current_time = 0.0;
             self.value = 0.0;

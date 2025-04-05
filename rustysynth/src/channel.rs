@@ -8,8 +8,8 @@ enum DataType {
 
 #[derive(Debug, Default)]
 pub(crate) struct Channel {
-    bank_number: i32,
-    patch_number: i32,
+    // XXX switch to u16
+    preset_id: i16,
 
     modulation: i16,
     volume: i16,
@@ -30,144 +30,115 @@ pub(crate) struct Channel {
     last_data_type: DataType,
 }
 
+macro_rules! set_coarse_fine {
+    ($field:ident, $coarse:ident, $fine:ident) => {
+        pub(crate) fn $coarse(&mut self, value: u8) {
+            //let value = (value & 0x7F) as u16; // XXX
+            let value = value as i16;
+            self.$field = (self.$field & 0x7F) | (value << 7) as i16;
+        }
+
+        pub(crate) fn $fine(&mut self, value: u8) {
+            //let value = (value & 0x7F) as u16; // XXX
+            let value = value as i32;
+            self.$field = (((self.$field as i32) & 0xFF80) | value) as i16
+        }
+    };
+}
+
 impl Channel {
     pub(crate) fn reset(&mut self) {
-        self.bank_number = 0;
-        self.patch_number = 0;
-
-        self.modulation = 0;
+        self.preset_id = 0;
         self.volume = 100 << 7;
         self.pan = 64 << 7;
-        self.expression = 127 << 7;
-        self.hold_pedal = false;
-
         self.reverb_send = 40;
         self.chorus_send = 0;
-
-        self.rpn = -1;
         self.pitch_bend_range = 2 << 7;
         self.coarse_tune = 0;
         self.fine_tune = 8192;
-
-        self.pitch_bend = 0.0;
+        self.reset_all_controllers();
     }
 
     pub(crate) fn reset_all_controllers(&mut self) {
         self.modulation = 0;
         self.expression = 127 << 7;
         self.hold_pedal = false;
-
         self.rpn = -1;
-
         self.pitch_bend = 0.0;
     }
 
-    pub(crate) fn set_bank(&mut self, value: i32) {
-        self.bank_number = value;
-    }
+    set_coarse_fine!(preset_id, set_bank, set_patch);
+    set_coarse_fine!(modulation, set_modulation_coarse, set_modulation_fine);
+    set_coarse_fine!(volume, set_volume_coarse, set_volume_fine);
+    set_coarse_fine!(pan, set_pan_coarse, set_pan_fine);
+    set_coarse_fine!(expression, set_expression_coarse, set_expression_fine);
 
-    pub(crate) fn set_patch(&mut self, value: i32) {
-        self.patch_number = value;
-    }
-
-    pub(crate) fn set_modulation_coarse(&mut self, value: i32) {
-        self.modulation = (self.modulation & 0x7F) | (value << 7) as i16;
-    }
-
-    pub(crate) fn set_modulation_fine(&mut self, value: i32) {
-        self.modulation = (((self.modulation as i32) & 0xFF80) | value) as i16;
-    }
-
-    pub(crate) fn set_volume_coarse(&mut self, value: i32) {
-        self.volume = (self.volume & 0x7F) | (value << 7) as i16;
-    }
-
-    pub(crate) fn set_volume_fine(&mut self, value: i32) {
-        self.volume = (((self.volume as i32) & 0xFF80) | value) as i16;
-    }
-
-    pub(crate) fn set_pan_coarse(&mut self, value: i32) {
-        self.pan = (self.pan & 0x7F) | (value << 7) as i16;
-    }
-
-    pub(crate) fn set_pan_fine(&mut self, value: i32) {
-        self.pan = (((self.pan as i32) & 0xFF80) | value) as i16;
-    }
-
-    pub(crate) fn set_expression_coarse(&mut self, value: i32) {
-        self.expression = (self.expression & 0x7F) | (value << 7) as i16;
-    }
-
-    pub(crate) fn set_expression_fine(&mut self, value: i32) {
-        self.expression = (((self.expression as i32) & 0xFF80) | value) as i16;
-    }
-
-    pub(crate) fn set_hold_pedal(&mut self, value: i32) {
+    pub(crate) fn set_hold_pedal(&mut self, value: u8) {
         self.hold_pedal = value >= 64;
     }
 
-    pub(crate) fn set_reverb_send(&mut self, value: i32) {
-        self.reverb_send = value as u8;
+    pub(crate) fn set_reverb_send(&mut self, value: u8) {
+        self.reverb_send = value;
     }
 
-    pub(crate) fn set_chorus_send(&mut self, value: i32) {
-        self.chorus_send = value as u8;
+    pub(crate) fn set_chorus_send(&mut self, value: u8) {
+        self.chorus_send = value;
     }
 
-    pub(crate) fn set_rpn_coarse(&mut self, value: i32) {
-        self.rpn = (self.rpn & 0x7F) | (value << 7) as i16;
+    set_coarse_fine!(rpn, set_rpn_coarse_, set_rpn_fine_);
+    pub(crate) fn set_rpn_coarse(&mut self, value: u8) {
+        self.set_rpn_coarse_(value);
         self.last_data_type = DataType::Rpn;
     }
 
-    pub(crate) fn set_rpn_fine(&mut self, value: i32) {
-        self.rpn = (((self.rpn as i32) & 0xFF80) | value) as i16;
+    pub(crate) fn set_rpn_fine(&mut self, value: u8) {
+        self.set_rpn_fine_(value);
         self.last_data_type = DataType::Rpn;
     }
 
-    pub(crate) fn set_nrpn_coarse(&mut self, _value: i32) {
+    pub(crate) fn set_nrpn_coarse(&mut self, _value: u8) {
         self.last_data_type = DataType::Nrpn;
     }
 
-    pub(crate) fn set_nrpn_fine(&mut self, _value: i32) {
+    pub(crate) fn set_nrpn_fine(&mut self, _value: u8) {
         self.last_data_type = DataType::Nrpn;
     }
 
-    pub(crate) fn data_entry_coarse(&mut self, value: i32) {
+    set_coarse_fine!(pitch_bend_range, set_pbr_coarse, set_pbr_fine);
+    set_coarse_fine!(fine_tune, set_fine_tune_coarse, set_fine_tune_fine);
+    pub(crate) fn data_entry_coarse(&mut self, value: u8) {
         if self.last_data_type != DataType::Rpn {
             return;
         }
 
         if self.rpn == 0 {
-            self.pitch_bend_range = (self.pitch_bend_range & 0x7F) | (value << 7) as i16;
+            self.set_pbr_coarse(value);
         } else if self.rpn == 1 {
-            self.fine_tune = (self.fine_tune & 0x7F) | (value << 7) as i16;
+            self.set_fine_tune_coarse(value);
         } else if self.rpn == 2 {
-            self.coarse_tune = (value - 64) as i16;
+            self.coarse_tune = (value as i16 - 64) as i16;
         }
     }
 
-    pub(crate) fn data_entry_fine(&mut self, value: i32) {
+    pub(crate) fn data_entry_fine(&mut self, value: u8) {
         if self.last_data_type != DataType::Rpn {
             return;
         }
 
         if self.rpn == 0 {
-            self.pitch_bend_range = (((self.pitch_bend_range as i32) & 0xFF80) | value) as i16;
+            self.set_pbr_fine(value);
         } else if self.rpn == 1 {
-            self.fine_tune = (((self.fine_tune as i32) & 0xFF80) | value) as i16;
+            self.set_fine_tune_fine(value);
         }
     }
 
-    pub(crate) fn set_pitch_bend(&mut self, value: i32) {
+    pub(crate) fn set_pitch_bend(&mut self, value: u16) {
+        let value = value as i32;
         self.pitch_bend = (1.0 / 8192.0) * (value - 8192) as f32;
     }
 
-    pub(crate) fn get_bank_number(&self) -> i32 {
-        self.bank_number
-    }
-
-    pub(crate) fn get_patch_number(&self) -> i32 {
-        self.patch_number
+    pub(crate) fn get_preset_id(&self) -> u16 {
+        self.preset_id as u16
     }
 
     pub(crate) fn get_modulation(&self) -> f32 {
