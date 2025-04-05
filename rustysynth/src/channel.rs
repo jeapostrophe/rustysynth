@@ -1,14 +1,13 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 enum DataType {
+    #[default]
     None,
     Rpn,
     Nrpn,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Channel {
-    pub(crate) is_percussion_channel: bool,
-
     bank_number: i32,
     patch_number: i32,
 
@@ -32,33 +31,8 @@ pub(crate) struct Channel {
 }
 
 impl Channel {
-    pub(crate) fn new(is_percussion_channel: bool) -> Self {
-        let mut channel = Self {
-            is_percussion_channel,
-            bank_number: 0,
-            patch_number: 0,
-            modulation: 0,
-            volume: 0,
-            pan: 0,
-            expression: 0,
-            hold_pedal: false,
-            reverb_send: 0,
-            chorus_send: 0,
-            rpn: 0,
-            pitch_bend_range: 0,
-            coarse_tune: 0,
-            fine_tune: 0,
-            pitch_bend: 0.0,
-            last_data_type: DataType::None,
-        };
-
-        channel.reset();
-
-        channel
-    }
-
     pub(crate) fn reset(&mut self) {
-        self.bank_number = if self.is_percussion_channel { 128 } else { 0 };
+        self.bank_number = 0;
         self.patch_number = 0;
 
         self.modulation = 0;
@@ -90,10 +64,6 @@ impl Channel {
 
     pub(crate) fn set_bank(&mut self, value: i32) {
         self.bank_number = value;
-
-        if self.is_percussion_channel {
-            self.bank_number += 128;
-        }
     }
 
     pub(crate) fn set_patch(&mut self, value: i32) {

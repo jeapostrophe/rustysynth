@@ -270,6 +270,7 @@ impl Voice {
         if self.note_gain < NON_AUDIBLE {
             0.0
         } else {
+            // XXX look at the volume envelope stage
             1.0
         }
     }

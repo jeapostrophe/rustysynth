@@ -57,7 +57,6 @@ pub struct Synthesizer<Source> {
 }
 
 pub const CHANNELS: usize = 16;
-pub const PERCUSSION_CHANNEL: usize = 9;
 
 // XXX replace these functions with some SIMD operations
 mod array_math {
@@ -130,8 +129,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
         Source: From<S>,
     {
         let mut channels: Vec<Channel> = Vec::new();
-        for i in 0..CHANNELS {
-            channels.push(Channel::new(i == PERCUSSION_CHANNEL));
+        for _ in 0..CHANNELS {
+            channels.push(Channel::default());
         }
 
         Self {
@@ -225,8 +224,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
     }
 
     pub fn reset(&mut self) {
+        self.master_volume = 0.5;
         self.voices.clear();
-
         for channel in &mut self.channels {
             channel.reset();
         }
@@ -241,6 +240,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
         let mut left = 0.0;
         let mut right = 0.0;
+        // XXX Add back in reverb and chorus
         let mut reverb_input = 0.0;
         let mut chorus_input_left = 0.0;
         let mut chorus_input_right = 0.0;
@@ -261,6 +261,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             );
 
             // Chorus
+            /*
             array_math::write(
                 voice.previous_chorus_send * voice.previous_mix_gain_left,
                 voice.current_chorus_send * voice.current_mix_gain_left,
@@ -273,8 +274,10 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 *voice_out,
                 &mut chorus_input_right,
             );
+            */
 
             // Reverb
+            /*
             array_math::write(
                 self.reverb.get_input_gain()
                     * voice.previous_reverb_send
@@ -285,6 +288,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 *voice_out,
                 &mut reverb_input,
             );
+            */
         }
 
         /* XXX
