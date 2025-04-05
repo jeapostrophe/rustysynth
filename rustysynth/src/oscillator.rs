@@ -60,77 +60,55 @@ impl Oscillator {
         }
     }
 
-    pub(crate) fn process(&mut self, data: &[i16], block: &mut [f32], pitch: f32) -> bool {
+    pub(crate) fn render(&mut self, data: &[i16], pitch: f32) -> Option<f32> {
         let pitch_change = (pitch - self.root_key as f32) + self.tune;
         let pitch_ratio = self.sample_rate_ratio * 2_f32.powf(pitch_change / 12_f32);
-        self.fill_block(data, block, pitch_ratio as f64)
+        self.fill_block(data, pitch_ratio as f64)
     }
 
-    fn fill_block(&mut self, data: &[i16], block: &mut [f32], pitch_ratio: f64) -> bool {
+    fn fill_block(&mut self, data: &[i16], pitch_ratio: f64) -> Option<f32> {
         let pitch_ratio_fp = (Oscillator::FRAC_UNIT as f64 * pitch_ratio) as i64;
 
         if self.looping {
-            self.fill_block_continuous(data, block, pitch_ratio_fp)
+            Some(self.fill_block_continuous(data, pitch_ratio_fp))
         } else {
-            self.fill_block_no_loop(data, block, pitch_ratio_fp)
+            self.fill_block_no_loop(data, pitch_ratio_fp)
         }
     }
 
-    fn fill_block_no_loop(&mut self, data: &[i16], block: &mut [f32], pitch_ratio_fp: i64) -> bool {
-        for t in 0..block.len() {
-            let index = (self.position_fp >> Oscillator::FRAC_BITS) as usize;
-            if index >= self.end as usize {
-                if t > 0 {
-                    let len = block.len();
-                    block[t..len].fill(0_f32);
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            let x1 = data[index] as i64;
-            let x2 = data[index + 1] as i64;
-            let a_fp = self.position_fp & (Oscillator::FRAC_UNIT - 1);
-            block[t] = Oscillator::FP_TO_SAMPLE
-                * ((x1 << Oscillator::FRAC_BITS) + a_fp * (x2 - x1)) as f32;
-
-            self.position_fp += pitch_ratio_fp;
+    fn fill_block_no_loop(&mut self, data: &[i16], pitch_ratio_fp: i64) -> Option<f32> {
+        let index = (self.position_fp >> Oscillator::FRAC_BITS) as usize;
+        if index >= self.end as usize {
+            return None;
         }
 
-        true
+        let x1 = data[index] as i64;
+        let x2 = data[index + 1] as i64;
+        let a_fp = self.position_fp & (Oscillator::FRAC_UNIT - 1);
+        self.position_fp += pitch_ratio_fp;
+        Some(Oscillator::FP_TO_SAMPLE * ((x1 << Oscillator::FRAC_BITS) + a_fp * (x2 - x1)) as f32)
     }
 
-    fn fill_block_continuous(
-        &mut self,
-        data: &[i16],
-        block: &mut [f32],
-        pitch_ratio_fp: i64,
-    ) -> bool {
+    fn fill_block_continuous(&mut self, data: &[i16], pitch_ratio_fp: i64) -> f32 {
         let end_loop_fp = (self.end_loop as i64) << Oscillator::FRAC_BITS;
         let loop_length = (self.end_loop - self.start_loop) as i64;
         let loop_length_fp = loop_length << Oscillator::FRAC_BITS;
 
-        for sample in block.iter_mut() {
-            if self.position_fp >= end_loop_fp {
-                self.position_fp -= loop_length_fp;
-            }
-
-            let index1 = (self.position_fp >> Oscillator::FRAC_BITS) as usize;
-            let mut index2 = index1 + 1;
-            if index2 >= self.end_loop as usize {
-                index2 -= loop_length as usize;
-            }
-
-            let x1 = data[index1] as i64;
-            let x2 = data[index2] as i64;
-            let a_fp = self.position_fp & (Oscillator::FRAC_UNIT - 1);
-            *sample = Oscillator::FP_TO_SAMPLE
-                * ((x1 << Oscillator::FRAC_BITS) + a_fp * (x2 - x1)) as f32;
-
-            self.position_fp += pitch_ratio_fp;
+        if self.position_fp >= end_loop_fp {
+            self.position_fp -= loop_length_fp;
         }
 
-        true
+        let index1 = (self.position_fp >> Oscillator::FRAC_BITS) as usize;
+        let mut index2 = index1 + 1;
+        if index2 >= self.end_loop as usize {
+            index2 -= loop_length as usize;
+        }
+
+        let x1 = data[index1] as i64;
+        let x2 = data[index2] as i64;
+        let a_fp = self.position_fp & (Oscillator::FRAC_UNIT - 1);
+        self.position_fp += pitch_ratio_fp;
+
+        Oscillator::FP_TO_SAMPLE * ((x1 << Oscillator::FRAC_BITS) + a_fp * (x2 - x1)) as f32
     }
 }

@@ -2,10 +2,8 @@ use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 use crate::voice_collection::VoiceCollection;
-use crate::Block;
 use crate::LoopMode;
 use anyhow::Result;
-use std::cmp;
 
 pub trait Sound {
     fn sample_sample_rate(&self) -> i32;
@@ -34,6 +32,7 @@ pub trait Sound {
     fn get_fine_tune(&self) -> i32;
     fn get_sample_modes(&self) -> LoopMode;
     fn get_root_key(&self) -> i32;
+    // XXX Add something to get a read-only Cursor on the sample data
 }
 
 pub trait SoundSource {
@@ -51,19 +50,10 @@ pub trait SoundSource {
 pub struct Synthesizer<Source> {
     pub(crate) sound_font: Source,
     channels: Vec<Channel>,
-
     voices: VoiceCollection,
-
-    block_left: Block<f32>,
-    block_right: Block<f32>,
-
-    inverse_block_size: f32,
-
-    block_read: usize,
-
     master_volume: f32,
-
-    effects: Effects,
+    reverb: Reverb,
+    chorus: Chorus,
 }
 
 pub const CHANNELS: usize = 16;
@@ -105,6 +95,22 @@ mod array_math {
             multiply_add_slope(previous_gain, step, source, destination);
         }
     }
+
+    pub fn multiply_add1(a: f32, x: f32, destination: &mut f32) {
+        *destination += a * x;
+    }
+
+    pub fn write(previous_gain: f32, current_gain: f32, source: f32, destination: &mut f32) {
+        if previous_gain.max(current_gain) < NON_AUDIBLE {
+            return;
+        }
+
+        if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
+            multiply_add1(current_gain, source, destination);
+        } else {
+            multiply_add1(previous_gain, source, destination);
+        }
+    }
 }
 
 macro_rules! set_channel {
@@ -119,41 +125,23 @@ macro_rules! set_channel {
 }
 
 impl<Source: SoundSource> Synthesizer<Source> {
-    pub fn new<S>(sound_font_pre: S) -> Result<Self>
+    pub fn new<S>(sound_font_pre: S) -> Self
     where
         Source: From<S>,
     {
-        let sound_font = sound_font_pre.into();
-
         let mut channels: Vec<Channel> = Vec::new();
         for i in 0..CHANNELS {
             channels.push(Channel::new(i == PERCUSSION_CHANNEL));
         }
 
-        let voices = VoiceCollection::default();
-
-        let block_left = [0_f32; crate::BLOCK_SIZE];
-        let block_right = [0_f32; crate::BLOCK_SIZE];
-
-        let inverse_block_size = 1_f32 / crate::BLOCK_SIZE as f32;
-
-        let block_read = crate::BLOCK_SIZE;
-
-        let master_volume = 0.5_f32;
-
-        let effects = Effects::default();
-
-        Ok(Self {
-            sound_font,
+        Self {
+            sound_font: sound_font_pre.into(),
             channels,
-            voices,
-            block_left,
-            block_right,
-            inverse_block_size,
-            block_read,
-            master_volume,
-            effects,
-        })
+            voices: VoiceCollection::default(),
+            master_volume: 0.5,
+            reverb: Reverb::default(),
+            chorus: Chorus::default(),
+        }
     }
 
     set_channel!(set_bank);
@@ -242,178 +230,74 @@ impl<Source: SoundSource> Synthesizer<Source> {
         for channel in &mut self.channels {
             channel.reset();
         }
-
-        self.effects.reverb.mute();
-        self.effects.chorus.mute();
-
-        self.block_read = crate::BLOCK_SIZE;
+        self.reverb.mute();
+        self.chorus.mute();
     }
 
-    pub fn render(&mut self, left: &mut [f32], right: &mut [f32]) {
-        if left.len() != right.len() {
-            panic!("The output buffers for the left and right must be the same length.");
-        }
+    pub fn render(&mut self) -> (f32, f32) {
+        let voice_outs = self
+            .voices
+            .render(self.sound_font.wave_data(), &self.channels);
 
-        let left_length = left.len();
+        let mut left = 0.0;
+        let mut right = 0.0;
+        let mut reverb_input = 0.0;
+        let mut chorus_input_left = 0.0;
+        let mut chorus_input_right = 0.0;
 
-        let mut wrote = 0;
-        while wrote < left_length {
-            if self.block_read == crate::BLOCK_SIZE {
-                self.render_block();
-                self.block_read = 0;
-            }
-
-            let src_rem = crate::BLOCK_SIZE - self.block_read;
-            let dst_rem = left_length - wrote;
-            let rem = cmp::min(src_rem, dst_rem);
-
-            for t in 0..rem {
-                left[wrote + t] = self.block_left[self.block_read + t];
-                right[wrote + t] = self.block_right[self.block_read + t];
-            }
-
-            self.block_read += rem;
-            wrote += rem;
-        }
-    }
-
-    fn render_block(&mut self) {
-        // XXX move blocks out of structures and instead embed here
-        self.voices
-            .process(self.sound_font.wave_data(), &self.channels);
-
-        self.block_left.fill(0_f32);
-        self.block_right.fill(0_f32);
-        for voice in &self.voices.0 {
-            let previous_gain_left = self.master_volume * voice.previous_mix_gain_left;
-            let current_gain_left = self.master_volume * voice.current_mix_gain_left;
-            array_math::write_block(
-                previous_gain_left,
-                current_gain_left,
-                &voice.block[..],
-                &mut self.block_left[..],
-                self.inverse_block_size,
+        for (voice, voice_out) in self.voices.0.iter().zip(voice_outs.iter()) {
+            // Normal output
+            array_math::write(
+                self.master_volume * voice.previous_mix_gain_left,
+                self.master_volume * voice.current_mix_gain_left,
+                *voice_out,
+                &mut left,
             );
-            let previous_gain_right = self.master_volume * voice.previous_mix_gain_right;
-            let current_gain_right = self.master_volume * voice.current_mix_gain_right;
-            array_math::write_block(
-                previous_gain_right,
-                current_gain_right,
-                &voice.block[..],
-                &mut self.block_right[..],
-                self.inverse_block_size,
-            );
-        }
-
-        {
-            let effects = &mut self.effects;
-            let chorus = &mut effects.chorus;
-            let chorus_input_left = &mut effects.chorus_input_left[..];
-            let chorus_input_right = &mut effects.chorus_input_right[..];
-            let chorus_output_left = &mut effects.chorus_output_left[..];
-            let chorus_output_right = &mut effects.chorus_output_right[..];
-            chorus_input_left.fill(0_f32);
-            chorus_input_right.fill(0_f32);
-            for voice in &self.voices.0 {
-                let previous_gain_left = voice.previous_chorus_send * voice.previous_mix_gain_left;
-                let current_gain_left = voice.current_chorus_send * voice.current_mix_gain_left;
-                array_math::write_block(
-                    previous_gain_left,
-                    current_gain_left,
-                    &voice.block[..],
-                    chorus_input_left,
-                    self.inverse_block_size,
-                );
-                let previous_gain_right =
-                    voice.previous_chorus_send * voice.previous_mix_gain_right;
-                let current_gain_right = voice.current_chorus_send * voice.current_mix_gain_right;
-                array_math::write_block(
-                    previous_gain_right,
-                    current_gain_right,
-                    &voice.block[..],
-                    chorus_input_right,
-                    self.inverse_block_size,
-                );
-            }
-            chorus.process(
-                chorus_input_left,
-                chorus_input_right,
-                chorus_output_left,
-                chorus_output_right,
-            );
-            array_math::multiply_add(
-                self.master_volume,
-                chorus_output_left,
-                &mut self.block_left[..],
-            );
-            array_math::multiply_add(
-                self.master_volume,
-                chorus_output_right,
-                &mut self.block_right[..],
+            array_math::write(
+                self.master_volume * voice.previous_mix_gain_right,
+                self.master_volume * voice.current_mix_gain_right,
+                *voice_out,
+                &mut right,
             );
 
-            let reverb = &mut effects.reverb;
-            let reverb_input = &mut effects.reverb_input[..];
-            let reverb_output_left = &mut effects.reverb_output_left[..];
-            let reverb_output_right = &mut effects.reverb_output_right[..];
-            reverb_input.fill(0_f32);
-            for voice in &self.voices.0 {
-                let previous_gain = reverb.get_input_gain()
+            // Chorus
+            array_math::write(
+                voice.previous_chorus_send * voice.previous_mix_gain_left,
+                voice.current_chorus_send * voice.current_mix_gain_left,
+                *voice_out,
+                &mut chorus_input_left,
+            );
+            array_math::write(
+                voice.previous_chorus_send * voice.previous_mix_gain_right,
+                voice.current_chorus_send * voice.current_mix_gain_right,
+                *voice_out,
+                &mut chorus_input_right,
+            );
+
+            // Reverb
+            array_math::write(
+                self.reverb.get_input_gain()
                     * voice.previous_reverb_send
-                    * (voice.previous_mix_gain_left + voice.previous_mix_gain_right);
-                let current_gain = reverb.get_input_gain()
+                    * (voice.previous_mix_gain_left + voice.previous_mix_gain_right),
+                self.reverb.get_input_gain()
                     * voice.current_reverb_send
-                    * (voice.current_mix_gain_left + voice.current_mix_gain_right);
-                array_math::write_block(
-                    previous_gain,
-                    current_gain,
-                    &voice.block[..],
-                    &mut reverb_input[..],
-                    self.inverse_block_size,
-                );
-            }
-
-            reverb.process(reverb_input, reverb_output_left, reverb_output_right);
-            array_math::multiply_add(
-                self.master_volume,
-                reverb_output_left,
-                &mut self.block_left[..],
-            );
-            array_math::multiply_add(
-                self.master_volume,
-                reverb_output_right,
-                &mut self.block_right[..],
+                    * (voice.current_mix_gain_left + voice.current_mix_gain_right),
+                *voice_out,
+                &mut reverb_input,
             );
         }
-    }
-}
 
-#[derive(Debug)]
-struct Effects {
-    reverb: Reverb,
-    reverb_input: Block<f32>,
-    reverb_output_left: Block<f32>,
-    reverb_output_right: Block<f32>,
+        /* XXX
+                let (chorus_output_left, chorus_output_right) =
+                    self.chorus.render(chorus_input_left, chorus_input_right);
+                array_math::multiply_add1(self.master_volume, chorus_output_left, &mut left);
+                array_math::multiply_add1(self.master_volume, chorus_output_right, &mut right);
 
-    chorus: Chorus,
-    chorus_input_left: Block<f32>,
-    chorus_input_right: Block<f32>,
-    chorus_output_left: Block<f32>,
-    chorus_output_right: Block<f32>,
-}
+                let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
+                array_math::multiply_add1(self.master_volume, reverb_output_left, &mut left);
+                array_math::multiply_add1(self.master_volume, reverb_output_right, &mut right);
+        */
 
-impl Default for Effects {
-    fn default() -> Effects {
-        Self {
-            reverb: Reverb::default(),
-            reverb_input: [0_f32; crate::BLOCK_SIZE],
-            reverb_output_left: [0_f32; crate::BLOCK_SIZE],
-            reverb_output_right: [0_f32; crate::BLOCK_SIZE],
-            chorus: Chorus::default(),
-            chorus_input_left: [0_f32; crate::BLOCK_SIZE],
-            chorus_input_right: [0_f32; crate::BLOCK_SIZE],
-            chorus_output_left: [0_f32; crate::BLOCK_SIZE],
-            chorus_output_right: [0_f32; crate::BLOCK_SIZE],
-        }
+        (left, right)
     }
 }

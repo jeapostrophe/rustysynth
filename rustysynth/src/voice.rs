@@ -6,7 +6,6 @@ use crate::oscillator::Oscillator;
 use crate::soundfont_math::*;
 use crate::synthesizer::Sound;
 use crate::volume_envelope::VolumeEnvelope;
-use crate::Block;
 use std::f32::consts;
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -27,8 +26,6 @@ pub(crate) struct Voice {
 
     oscillator: Oscillator,
     filter: BiQuadFilter,
-
-    pub(crate) block: Block<f32>,
 
     // A sudden change in the mix gain will cause pop noise.
     // To avoid this, we save the mix gain of the previous block,
@@ -85,7 +82,6 @@ impl Default for Voice {
             mod_lfo: Lfo::default(),
             oscillator: Oscillator::default(),
             filter: BiQuadFilter::default(),
-            block: [0_f32; crate::BLOCK_SIZE],
             previous_mix_gain_left: 0_f32,
             previous_mix_gain_right: 0_f32,
             current_mix_gain_left: 0_f32,
@@ -208,34 +204,38 @@ impl Voice {
         self.note_gain = 0_f32;
     }
 
-    pub(crate) fn process(&mut self, data: &[i16], channel_info: &Channel) -> bool {
+    pub(crate) fn render(&mut self, data: &[i16], channel_info: &Channel) -> Option<f32> {
         if self.note_gain < NON_AUDIBLE {
-            return false;
+            return None;
         }
 
         self.release_if_necessary(channel_info);
 
-        if !self.vol_env.process(crate::BLOCK_SIZE) {
-            return false;
+        let (vol_env_output, vol_env_on) = self.vol_env.render();
+        if !vol_env_on {
+            return None;
         }
 
-        self.mod_env.process(crate::BLOCK_SIZE);
-        self.vib_lfo.process(crate::BLOCK_SIZE);
-        self.mod_lfo.process(crate::BLOCK_SIZE);
+        let mod_env_output = self.mod_env.render();
+        let vib_lfo_output = self.vib_lfo.render();
+        let mod_lfo_output = self.mod_lfo.render();
 
         let vib_pitch_change =
-            (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * self.vib_lfo.value;
+            (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * vib_lfo_output;
         let mod_pitch_change =
-            self.mod_lfo_to_pitch * self.mod_lfo.value + self.mod_env_to_pitch * self.mod_env.value;
+            self.mod_lfo_to_pitch * mod_lfo_output + self.mod_env_to_pitch * mod_env_output;
         let channel_pitch_change = channel_info.get_tune() + channel_info.get_pitch_bend();
         let pitch = self.key as f32 + vib_pitch_change + mod_pitch_change + channel_pitch_change;
-        if !self.oscillator.process(data, &mut self.block[..], pitch) {
-            return false;
+
+        let osc_output = self.oscillator.render(data, pitch);
+        if osc_output.is_none() {
+            return None;
         }
+        let osc_output = osc_output.unwrap();
 
         if self.dynamic_cutoff {
-            let cents = self.mod_lfo_to_cutoff as f32 * self.mod_lfo.value
-                + self.mod_env_to_cutoff as f32 * self.mod_env.value;
+            let cents = self.mod_lfo_to_cutoff as f32 * mod_lfo_output
+                + self.mod_env_to_cutoff as f32 * mod_env_output;
             let factor = cents_to_multiplying_factor(cents);
             let new_cutoff = factor * self.cutoff;
 
@@ -247,7 +247,7 @@ impl Voice {
             self.filter
                 .set_low_pass_filter(self.smoothed_cutoff, self.resonance);
         }
-        self.filter.process(&mut self.block[..]);
+        let output = self.filter.render(osc_output);
 
         self.previous_mix_gain_left = self.current_mix_gain_left;
         self.previous_mix_gain_right = self.current_mix_gain_right;
@@ -258,9 +258,9 @@ impl Voice {
         let ve = channel_info.get_volume() * channel_info.get_expression();
         let channel_gain = ve * ve;
 
-        let mut mix_gain = self.note_gain * channel_gain * self.vol_env.value;
+        let mut mix_gain = self.note_gain * channel_gain * vol_env_output;
         if self.dynamic_volume {
-            let decibels = self.mod_lfo_to_volume * self.mod_lfo.value;
+            let decibels = self.mod_lfo_to_volume * mod_lfo_output;
             mix_gain *= decibels_to_linear(decibels);
         }
 
@@ -289,9 +289,9 @@ impl Voice {
             self.previous_chorus_send = self.current_chorus_send;
         }
 
-        self.voice_length += crate::BLOCK_SIZE;
+        self.voice_length += 1;
 
-        true
+        Some(output)
     }
 
     fn release_if_necessary(&mut self, channel_info: &Channel) {
@@ -311,9 +311,9 @@ impl Voice {
 
     pub(crate) fn get_priority(&self) -> f32 {
         if self.note_gain < NON_AUDIBLE {
-            0_f32
+            0.0
         } else {
-            self.vol_env.priority
+            1.0
         }
     }
 }

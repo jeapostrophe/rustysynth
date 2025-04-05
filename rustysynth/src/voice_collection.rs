@@ -34,11 +34,19 @@ impl VoiceCollection {
         &mut voices[candidate]
     }
 
-    pub(crate) fn process(&mut self, data: &[i16], channels: &[Channel]) {
+    pub(crate) fn render(&mut self, data: &[i16], channels: &[Channel]) -> Vec<f32> {
+        let mut output = vec![];
         self.0.retain_mut(|voice| {
             let channel_info = &channels[voice.channel as usize];
-            voice.process(data, channel_info)
+            match voice.render(data, channel_info) {
+                Some(sample) => {
+                    output.push(sample);
+                    true
+                }
+                None => false,
+            }
         });
+        output
     }
 
     pub(crate) fn clear(&mut self) {

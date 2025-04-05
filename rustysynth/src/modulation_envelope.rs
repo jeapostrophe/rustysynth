@@ -1,4 +1,3 @@
-use crate::soundfont_math::*;
 use crate::EnvelopeStage;
 
 #[derive(Debug, Default)]
@@ -16,13 +15,13 @@ pub(crate) struct ModulationEnvelope {
 
     release_level: f32,
 
-    processed_sample_count: usize,
     stage: EnvelopeStage,
-    pub value: f32,
+    value: f32,
+    current_time: f64,
 }
 
 impl ModulationEnvelope {
-    // XXX rm as and switch to f64
+    // XXX rm as in code and switch args to f64
     pub(crate) fn start(&mut self, delay: f32, attack: f32, hold: f32, decay: f32, release: f32) {
         self.attack_slope = 1.0 / attack as f64;
         self.decay_slope = 1.0 / decay as f64;
@@ -37,24 +36,24 @@ impl ModulationEnvelope {
 
         self.release_level = 0.0;
 
-        self.processed_sample_count = 0;
+        self.current_time = 0.0;
         self.stage = EnvelopeStage::DELAY;
         self.value = 0.0;
 
-        self.process(0);
+        self.render_();
     }
 
     pub(crate) fn release(&mut self) {
         self.stage = EnvelopeStage::RELEASE;
-        self.release_end_time += self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
+        self.release_end_time += self.current_time;
         self.release_level = self.value;
     }
 
-    pub(crate) fn process(&mut self, sample_count: usize) -> bool {
-        self.processed_sample_count += sample_count;
-
-        let current_time = self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
-
+    pub(crate) fn render(&mut self) -> f32 {
+        self.current_time += 1.0 / crate::SAMPLE_RATE as f64;
+        self.render_()
+    }
+    fn render_(&mut self) -> f32 {
         while self.stage <= EnvelopeStage::HOLD {
             let end_time = match self.stage {
                 EnvelopeStage::DELAY => self.attack_start_time,
@@ -63,38 +62,28 @@ impl ModulationEnvelope {
                 _ => panic!("Invalid envelope stage."),
             };
 
-            if current_time < end_time {
+            if self.current_time < end_time {
                 break;
             } else {
                 self.stage.next();
             }
         }
 
-        match self.stage {
-            EnvelopeStage::DELAY => {
-                self.value = 0.0;
-                true
-            }
+        self.value = match self.stage {
+            EnvelopeStage::DELAY => 0.0,
             EnvelopeStage::ATTACK => {
-                self.value = (self.attack_slope * (current_time - self.attack_start_time)) as f32;
-                true
+                (self.attack_slope * (self.current_time - self.attack_start_time)) as f32
             }
-            EnvelopeStage::HOLD => {
-                self.value = 1.0;
-                true
-            }
+            EnvelopeStage::HOLD => 1.0,
             EnvelopeStage::DECAY => {
-                self.value =
-                    ((self.decay_slope * (self.decay_end_time - current_time)) as f32).max(1.0);
-                self.value > NON_AUDIBLE
+                ((self.decay_slope * (self.decay_end_time - self.current_time)) as f32).max(1.0)
             }
-            EnvelopeStage::RELEASE => {
-                self.value = ((self.release_level as f64
-                    * self.release_slope
-                    * (self.release_end_time - current_time)) as f32)
-                    .max(0.0);
-                self.value > NON_AUDIBLE
-            }
-        }
+            EnvelopeStage::RELEASE => ((self.release_level as f64
+                * self.release_slope
+                * (self.release_end_time - self.current_time))
+                as f32)
+                .max(0.0),
+        };
+        self.value
     }
 }

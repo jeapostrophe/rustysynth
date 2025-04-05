@@ -15,7 +15,7 @@ fn simple_chord() {
     let sound_font = SoundFont::new(&mut sf2).unwrap();
 
     // Create the synthesizer.
-    let mut synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font).unwrap();
+    let mut synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font);
 
     // Play some notes (middle C, E, G).
     synthesizer.note_on(0, 60, 100);
@@ -28,7 +28,11 @@ fn simple_chord() {
     let mut right: Vec<f32> = vec![0_f32; sample_count];
 
     // Render the waveform.
-    synthesizer.render(&mut left[..], &mut right[..]);
+    for i in 0..sample_count {
+        let (left_sample, right_sample) = synthesizer.render();
+        left[i] = left_sample;
+        right[i] = right_sample;
+    }
 
     // Write the waveform to the file.
     write_pcm(&left[..], &right[..], "simple_chord.pcm");
@@ -44,7 +48,7 @@ fn flourish() {
     let midi_file = MidiFile::new(&mut mid).unwrap();
 
     // Create the MIDI file sequencer.
-    let synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font).unwrap();
+    let synthesizer: Synthesizer<SoundFontProc> = Synthesizer::new(sound_font);
     let sample_count = (rustysynth::SAMPLE_RATE as f64 * midi_file.get_length()) as usize;
     let mut sequencer = MidiFileSequencer::new(synthesizer, midi_file);
 
@@ -53,7 +57,11 @@ fn flourish() {
     let mut right: Vec<f32> = vec![0_f32; sample_count];
 
     // Render the waveform.
-    sequencer.render(&mut left[..], &mut right[..]);
+    for i in 0..sample_count {
+        let (left_sample, right_sample) = sequencer.render();
+        left[i] = left_sample;
+        right[i] = right_sample;
+    }
 
     // Write the waveform to the file.
     write_pcm(&left[..], &right[..], "flourish.pcm");
