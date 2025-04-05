@@ -220,8 +220,8 @@ impl Voice {
         }
 
         self.mod_env.process(crate::BLOCK_SIZE);
-        self.vib_lfo.process();
-        self.mod_lfo.process();
+        self.vib_lfo.process(crate::BLOCK_SIZE);
+        self.mod_lfo.process(crate::BLOCK_SIZE);
 
         let vib_pitch_change =
             (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * self.vib_lfo.value;

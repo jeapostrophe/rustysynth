@@ -278,6 +278,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
     }
 
     fn render_block(&mut self) {
+        // XXX move blocks out of structures and instead embed here
         self.voices
             .process(self.sound_font.wave_data(), &self.channels);
 

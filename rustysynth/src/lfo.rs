@@ -25,12 +25,12 @@ impl Lfo {
         }
     }
 
-    pub(crate) fn process(&mut self) {
+    pub(crate) fn process(&mut self, sample_count: usize) {
         if !self.active {
             return;
         }
 
-        self.processed_sample_count += crate::BLOCK_SIZE;
+        self.processed_sample_count += sample_count;
 
         let current_time = self.processed_sample_count as f64 / crate::SAMPLE_RATE as f64;
 
