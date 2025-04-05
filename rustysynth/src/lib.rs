@@ -14,9 +14,9 @@ mod volume_envelope;
 // XXX delay
 mod reverb;
 
+pub use self::oscillator::View;
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};
 
-// XXX Move these things into const generic parameters
 pub const SAMPLE_RATE: i32 = 44100;
 
 /// Specifies how the sample loops during playback.

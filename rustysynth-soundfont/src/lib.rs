@@ -24,14 +24,18 @@ mod zone_info;
 
 pub use self::soundfont::SoundFont;
 use anyhow::{anyhow, Result};
+use instrument::Instrument;
+use preset::Preset;
 use region_pair::RegionPair;
-use rustysynth::SoundSource;
-use std::collections::HashMap;
+use rustysynth::{SoundSource, View};
+use std::{collections::HashMap, sync::Arc};
 
 pub struct SoundFontProc {
-    sound_font: SoundFont,
+    presets: Vec<Preset>,
+    instruments: Vec<Instrument>,
     preset_lookup: HashMap<i32, usize>,
     default_preset: usize,
+    wave_data: Arc<[i16]>,
 }
 
 impl SoundFontProc {
@@ -59,9 +63,11 @@ impl SoundFontProc {
         }
 
         Self {
-            sound_font,
+            presets: sound_font.presets,
+            instruments: sound_font.instruments,
             preset_lookup,
             default_preset,
+            wave_data: Arc::from(sound_font.wave_data.into_boxed_slice()),
         }
     }
 }
@@ -73,12 +79,9 @@ impl From<SoundFont> for SoundFontProc {
 }
 
 impl SoundSource for SoundFontProc {
-    fn wave_data(&self) -> &Vec<i16> {
-        &self.sound_font.wave_data
-    }
     #[allow(refining_impl_trait)]
     fn get_regions(
-        &self,
+        &mut self,
         bank_id: i32,
         patch_id: i32,
         key: i32,
@@ -101,13 +104,22 @@ impl SoundSource for SoundFontProc {
             }
         }
 
-        let preset = &self.sound_font.presets[preset];
-        for preset_region in preset.regions.iter() {
-            if preset_region.contains(key, velocity) {
-                let instrument = &self.sound_font.instruments[preset_region.instrument];
-                for instrument_region in instrument.regions.iter() {
-                    if instrument_region.contains(key, velocity) {
-                        let region_pair = RegionPair::new(preset_region, instrument_region);
+        let preset = &self.presets[preset];
+        for preset in preset.regions.iter() {
+            if preset.contains(key, velocity) {
+                let instrument = &self.instruments[preset.instrument];
+                for instrument in instrument.regions.iter() {
+                    if instrument.contains(key, velocity) {
+                        let wave_data = View {
+                            data: self.wave_data.clone(),
+                            start: instrument.sample_start as usize,
+                            end: instrument.sample_end as usize,
+                        };
+                        let region_pair = RegionPair {
+                            preset,
+                            instrument,
+                            wave_data,
+                        };
                         // XXX In the original implementation, at this point, a
                         // voice would start, which means that one "note_on"
                         // could result in many voices if the key/vel pair were

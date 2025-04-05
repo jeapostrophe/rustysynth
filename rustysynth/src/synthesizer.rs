@@ -1,4 +1,5 @@
 use crate::channel::Channel;
+use crate::oscillator::View;
 use crate::reverb::Reverb;
 use crate::soundfont_math::NON_AUDIBLE;
 use crate::voice::Voice;
@@ -7,8 +8,6 @@ use anyhow::Result;
 
 pub trait Sound {
     fn sample_sample_rate(&self) -> i32;
-    fn get_sample_start(&self) -> i32;
-    fn get_sample_end(&self) -> i32;
     fn get_sample_start_loop(&self) -> i32;
     fn get_sample_end_loop(&self) -> i32;
     fn get_initial_filter_cutoff_frequency(&self) -> f32;
@@ -32,18 +31,17 @@ pub trait Sound {
     fn get_fine_tune(&self) -> i32;
     fn get_sample_modes(&self) -> LoopMode;
     fn get_root_key(&self) -> i32;
-    // XXX Add something to get a read-only Cursor on the sample data
+    fn get_wave_data(&self) -> View<i16>;
 }
 
 pub trait SoundSource {
     fn get_regions(
-        &self,
+        &mut self,
         bank_id: i32,
         patch_id: i32,
         key: i32,
         velocity: i32,
     ) -> Result<impl Sound>;
-    fn wave_data(&self) -> &Vec<i16>;
 }
 
 #[derive(Debug)]
@@ -221,11 +219,9 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
         let mut reverb_input = 0.0;
         // XXX chorus
 
-        let data = self.sound_font.wave_data();
-
         for voice in &mut self.voices {
             let channel_info = &self.channels[voice.channel as usize];
-            let vo = voice.render(data, channel_info);
+            let vo = voice.render(channel_info);
             if vo.is_none() {
                 continue;
             }

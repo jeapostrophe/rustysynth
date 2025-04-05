@@ -134,10 +134,9 @@ impl Voice {
             region.get_frequency_modulation_lfo(),
         );
         self.oscillator.start(
+            region.get_wave_data(),
             region.get_sample_modes(),
             region.sample_sample_rate(),
-            region.get_sample_start(),
-            region.get_sample_end(),
             region.get_sample_start_loop(),
             region.get_sample_end_loop(),
             region.get_root_key(),
@@ -162,7 +161,7 @@ impl Voice {
         self.note_gain = 0.0;
     }
 
-    pub(crate) fn render(&mut self, data: &[i16], channel_info: &Channel) -> Option<f32> {
+    pub(crate) fn render(&mut self, channel_info: &Channel) -> Option<f32> {
         if self.note_gain < NON_AUDIBLE {
             return None;
         }
@@ -185,7 +184,7 @@ impl Voice {
         let channel_pitch_change = channel_info.get_tune() + channel_info.get_pitch_bend();
         let pitch = self.key as f32 + vib_pitch_change + mod_pitch_change + channel_pitch_change;
 
-        let osc_output = self.oscillator.render(data, pitch);
+        let osc_output = self.oscillator.render(pitch);
         if osc_output.is_none() {
             return None;
         }

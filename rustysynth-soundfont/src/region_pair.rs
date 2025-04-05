@@ -2,32 +2,27 @@ use crate::generator_type::GeneratorType;
 use crate::instrument_region::InstrumentRegion;
 use crate::preset_region::PresetRegion;
 use rustysynth::soundfont_math::*;
-use rustysynth::LoopMode;
-use rustysynth::Sound;
+use rustysynth::{LoopMode, Sound, View};
 
 pub struct RegionPair<'a> {
-    preset: &'a PresetRegion,
-    instrument: &'a InstrumentRegion,
+    pub(crate) preset: &'a PresetRegion,
+    pub(crate) instrument: &'a InstrumentRegion,
+    pub(crate) wave_data: View<i16>,
 }
 
 impl Sound for RegionPair<'_> {
+    fn get_wave_data(&self) -> View<i16> {
+        self.wave_data.clone()
+    }
     fn sample_sample_rate(&self) -> i32 {
         self.instrument.sample_sample_rate
     }
-    fn get_sample_start(&self) -> i32 {
-        self.instrument.get_sample_start()
-    }
-
-    fn get_sample_end(&self) -> i32 {
-        self.instrument.get_sample_end()
-    }
-
     fn get_sample_start_loop(&self) -> i32 {
-        self.instrument.get_sample_start_loop()
+        self.instrument.get_sample_start_loop() - self.instrument.sample_start
     }
 
     fn get_sample_end_loop(&self) -> i32 {
-        self.instrument.get_sample_end_loop()
+        self.instrument.get_sample_end_loop() - self.instrument.sample_start
     }
 
     fn get_initial_filter_cutoff_frequency(&self) -> f32 {
@@ -114,10 +109,6 @@ impl Sound for RegionPair<'_> {
 }
 
 impl<'a> RegionPair<'a> {
-    pub(crate) fn new(preset: &'a PresetRegion, instrument: &'a InstrumentRegion) -> Self {
-        Self { preset, instrument }
-    }
-
     fn gs(&self, i: usize) -> i32 {
         self.preset.gs[i] as i32 + self.instrument.gs[i] as i32
     }
