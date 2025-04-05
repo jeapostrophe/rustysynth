@@ -1,381 +1,260 @@
-use std::cmp;
+// From https://github.com/MindBuffer/lanceverb/tree/master
 
-#[derive(Debug)]
-pub(crate) struct Reverb {
-    cfs_l: Vec<CombFilter>,
-    cfs_r: Vec<CombFilter>,
-    apfs_l: Vec<AllPassFilter>,
-    apfs_r: Vec<AllPassFilter>,
-
-    gain: f32,
-    room_size: f32,
-    room_size1: f32,
-    damp: f32,
-    damp1: f32,
-    wet: f32,
-    wet1: f32,
-    wet2: f32,
-    width: f32,
+/// Delay-line whose maximum size is fixed
+/// The advantage of using a static versus dynamic array is that its elements
+/// can be laid out in a predicatable location in memeory. This can improve
+/// access speeds if many delay-lines are used within another object, like a
+/// reverb
+#[derive(Copy, Clone, Debug)]
+pub struct DelayLine<const N: usize> {
+    pos: usize,
+    buffer: [f32; N],
 }
 
-impl Default for Reverb {
+impl<const N: usize> Default for DelayLine<N> {
+    /// Default constructor for a delay line
     fn default() -> Self {
-        let cfs_l: Vec<CombFilter> = vec![
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L1)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L2)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L3)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L4)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L5)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L6)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L7)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_L8)),
-        ];
-
-        let cfs_r: Vec<CombFilter> = vec![
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R1)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R2)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R3)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R4)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R5)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R6)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R7)),
-            CombFilter::new(Reverb::scale_tuning(Reverb::CF_TUNING_R8)),
-        ];
-
-        let mut apfs_l: Vec<AllPassFilter> = vec![
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L1)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L2)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L3)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_L4)),
-        ];
-
-        let mut apfs_r: Vec<AllPassFilter> = vec![
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R1)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R2)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R3)),
-            AllPassFilter::new(Reverb::scale_tuning(Reverb::APF_TUNING_R4)),
-        ];
-
-        for apf in apfs_l.iter_mut() {
-            apf.set_feedback(0.5);
+        DelayLine {
+            pos: 0,
+            buffer: core::array::from_fn(|_| 0.0),
         }
-
-        for apf in apfs_r.iter_mut() {
-            apf.set_feedback(0.5);
-        }
-
-        let mut reverb = Reverb {
-            cfs_l,
-            cfs_r,
-            apfs_l,
-            apfs_r,
-            gain: 0.0,
-            room_size: 0.0,
-            room_size1: 0.0,
-            damp: 0.0,
-            damp1: 0.0,
-            wet: 0.0,
-            wet1: 0.0,
-            wet2: 0.0,
-            width: 0.0,
-        };
-
-        reverb.set_wet(Reverb::INITIAL_WET);
-        reverb.set_room_size(Reverb::INITIAL_ROOM);
-        reverb.set_damp(Reverb::INITIAL_DAMP);
-        reverb.set_width(Reverb::INITIAL_WIDTH);
-
-        reverb
     }
+}
+
+impl<const N: usize> DelayLine<N> {
+    /// Get element at back
+    pub fn back(&self) -> f32 {
+        let idx = self.index_back();
+        self.buffer[idx]
+    }
+
+    /// Get index of back element.
+    pub fn index_back(&self) -> usize {
+        let i = self.pos + 1;
+        if i < N {
+            i
+        } else {
+            0
+        }
+    }
+
+    /// Read value at delay i
+    pub fn read(&self, i: i32) -> &f32 {
+        let mut idx = self.pos as i32 - i;
+        if idx < 0 {
+            idx += N as i32;
+        }
+        &self.buffer[idx as usize]
+    }
+
+    /// Write value to delay
+    pub fn write(&mut self, value: f32) {
+        self.buffer[self.pos] = value;
+        self.pos += 1;
+        if self.pos >= N {
+            self.pos = 0;
+        }
+    }
+
+    /// Write new value and return oldest value
+    pub fn get_write_and_step(&mut self, value: f32) -> f32 {
+        let r = self.buffer[self.pos];
+        self.write(value);
+        r
+    }
+
+    /// Comb filter input using a delay time equal to the maximum size of the delay-line
+    pub fn comb(&mut self, value: f32, feed_fwd: f32, feed_bck: f32) -> f32 {
+        let d = self.buffer[self.pos];
+        let r = value + d * feed_bck;
+        self.write(r);
+        d + r * feed_fwd
+    }
+
+    /// Allpass filter input using a delay time equal to the maximum size of the delay-line
+    pub fn allpass(&mut self, value: f32, feed_fwd: f32) -> f32 {
+        self.comb(value, feed_fwd, -feed_fwd)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct OnePole {
+    one: f32,
+    a: f32,
+    b: f32,
+}
+
+impl Default for OnePole {
+    fn default() -> OnePole {
+        OnePole {
+            one: 0.0,
+            a: 1.0,
+            b: 0.0,
+        }
+    }
+}
+impl OnePole {
+    pub fn damping(&mut self, value: f32) {
+        self.a = 1.0 - value.abs();
+        self.b = value;
+    }
+
+    pub fn call(&mut self, i: f32) -> f32 {
+        self.one = i * self.a + self.one * self.b;
+        self.one
+    }
+}
+
+/// Plate Reverberator
+///
+/// Design from:
+///
+/// Dattorro, J (1997). Effect design: Part 1: Reverberator and other filters.
+///
+/// Journal of Audio Engineering Society
+/// [45(9):660-684](https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf)
+#[derive(Clone, Debug, Default)]
+pub struct Reverb {
+    delay_feed_1: f32,
+    delay_feed_2: f32,
+    decay_1: f32,
+    decay_2: f32,
+    decay: f32,
+
+    pre_delay: DelayLine<10>,
+    one_pole: OnePole,
+    all_pass_in_1: DelayLine<142>,
+    all_pass_in_2: DelayLine<107>,
+    all_pass_in_3: DelayLine<379>,
+    all_pass_in_4: DelayLine<277>,
+
+    all_pass_decay_11: DelayLine<672>,
+    all_pass_decay_12: DelayLine<1800>,
+
+    delay_11: DelayLine<4453>,
+    delay_12: DelayLine<3720>,
+
+    one_pole_1: OnePole,
+    all_pass_decay_21: DelayLine<908>,
+    all_pass_decay_22: DelayLine<2656>,
+
+    delay_21: DelayLine<4217>,
+    delay_22: DelayLine<3163>,
+
+    one_pole_2: OnePole,
 }
 
 impl Reverb {
-    const FIXED_GAIN: f32 = 0.015;
-    const SCALE_WET: f32 = 3.0;
-    const SCALE_DAMP: f32 = 0.4;
-    const SCALE_ROOM: f32 = 0.28;
-    const OFFSET_ROOM: f32 = 0.7;
-    const INITIAL_ROOM: f32 = 0.5;
-    const INITIAL_DAMP: f32 = 0.5;
-    const INITIAL_WET: f32 = 1.0 / Reverb::SCALE_WET;
-    const INITIAL_WIDTH: f32 = 1.0;
-    const STEREO_SPREAD: usize = 23;
-
-    const CF_TUNING_L1: usize = 1116;
-    const CF_TUNING_R1: usize = 1116 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L2: usize = 1188;
-    const CF_TUNING_R2: usize = 1188 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L3: usize = 1277;
-    const CF_TUNING_R3: usize = 1277 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L4: usize = 1356;
-    const CF_TUNING_R4: usize = 1356 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L5: usize = 1422;
-    const CF_TUNING_R5: usize = 1422 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L6: usize = 1491;
-    const CF_TUNING_R6: usize = 1491 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L7: usize = 1557;
-    const CF_TUNING_R7: usize = 1557 + Reverb::STEREO_SPREAD;
-    const CF_TUNING_L8: usize = 1617;
-    const CF_TUNING_R8: usize = 1617 + Reverb::STEREO_SPREAD;
-    const APF_TUNING_L1: usize = 556;
-    const APF_TUNING_R1: usize = 556 + Reverb::STEREO_SPREAD;
-    const APF_TUNING_L2: usize = 441;
-    const APF_TUNING_R2: usize = 441 + Reverb::STEREO_SPREAD;
-    const APF_TUNING_L3: usize = 341;
-    const APF_TUNING_R3: usize = 341 + Reverb::STEREO_SPREAD;
-    const APF_TUNING_L4: usize = 225;
-    const APF_TUNING_R4: usize = 225 + Reverb::STEREO_SPREAD;
-
-    pub fn mute(&mut self) {
-        for cf in self.cfs_l.iter_mut() {
-            cf.mute();
-        }
-
-        for cf in self.cfs_r.iter_mut() {
-            cf.mute();
-        }
-
-        for apf in self.apfs_l.iter_mut() {
-            apf.mute();
-        }
-
-        for apf in self.apfs_r.iter_mut() {
-            apf.mute();
-        }
+    /// Contructor default reverb
+    pub fn reset(&mut self) -> () {
+        *self = Reverb::default();
+        self.bandwidth(0.9995);
+        self.decay(0.85);
+        self.damping(0.9);
+        self.diffusion(0.76, 0.666, 0.707, 0.517);
     }
 
-    fn scale_tuning(tuning: usize) -> usize {
-        ((crate::SAMPLE_RATE as f64) / 44100.0 * (tuning as f64)).round() as usize
+    /// Set input signal bandwidth, in [0,1]
+    /// This sets the cutoff frequency of a one-pole low-pass filter on the
+    /// input signal.
+    pub fn bandwidth(&mut self, value: f32) -> &mut Reverb {
+        self.one_pole_1.damping(1.0 - value);
+        self
     }
 
-    pub(crate) fn process(
-        &mut self,
-        input: &[f32],
-        output_left: &mut [f32],
-        output_right: &mut [f32],
-    ) {
-        let input_length = input.len();
-        let output_left_length = output_left.len();
-        let output_right_length = output_right.len();
-
-        for lsample in output_left.iter_mut().take(output_left_length) {
-            *lsample = 0.0;
-        }
-        for rsample in output_right.iter_mut().take(output_right_length) {
-            *rsample = 0.0;
-        }
-
-        for cf in self.cfs_l.iter_mut() {
-            cf.process(input, output_left);
-        }
-
-        for apf in self.apfs_l.iter_mut() {
-            apf.process(output_left);
-        }
-
-        for cf in self.cfs_r.iter_mut() {
-            cf.process(input, output_right);
-        }
-
-        for apf in self.apfs_r.iter_mut() {
-            apf.process(output_right);
-        }
-
-        // With the default settings, we can skip this part.
-        if 1.0 - self.wet1 > 1.0E-3 || self.wet2 > 1.0E-3 {
-            for t in 0..input_length {
-                let left = output_left[t];
-                let right = output_right[t];
-                output_left[t] = left * self.wet1 + right * self.wet2;
-                output_right[t] = right * self.wet1 + left * self.wet2;
-            }
-        }
+    /// Set high-frequency damping amount, in [0,1]
+    /// Higher amounts will dampen the diffuse sound more quickly.
+    /// rather than high frequencies.
+    pub fn damping(&mut self, value: f32) -> &mut Reverb {
+        self.one_pole_1.damping(value);
+        self.one_pole_2.damping(value);
+        self
     }
 
-    fn update(&mut self) {
-        self.wet1 = self.wet * (self.width / 2.0 + 0.5);
-        self.wet2 = self.wet * ((1.0 - self.width) / 2.0);
-
-        self.room_size1 = self.room_size;
-        self.damp1 = self.damp;
-        self.gain = Reverb::FIXED_GAIN;
-
-        for cf in self.cfs_l.iter_mut() {
-            cf.set_feedback(self.room_size1);
-            cf.set_damp(self.damp1);
-        }
-
-        for cf in self.cfs_r.iter_mut() {
-            cf.set_feedback(self.room_size1);
-            cf.set_damp(self.damp1);
-        }
+    /// Set decay factor, in [0,1]
+    pub fn decay(&mut self, value: f32) -> &mut Reverb {
+        self.decay = value;
+        self
     }
 
-    pub fn get_input_gain(&self) -> f32 {
-        self.gain
+    /// Set diffusion amounts, in [0, 1]
+    /// Values near 0.7 are recommended. Moving further away from 0.7 will lead
+    /// to more distinct echoes.
+    pub fn diffusion(&mut self, in_1: f32, in_2: f32, decay_1: f32, decay_2: f32) -> &mut Reverb {
+        self.delay_feed_1 = in_1;
+        self.delay_feed_2 = in_2;
+        self.decay_1 = decay_1;
+        self.decay_2 = decay_2;
+        self
     }
 
-    fn set_room_size(&mut self, value: f32) {
-        self.room_size = (value * Reverb::SCALE_ROOM) + Reverb::OFFSET_ROOM;
-        self.update();
+    /// Set input diffusion 1 amount, [0,1]
+    pub fn diffusion1(&mut self, value: f32) -> &mut Reverb {
+        self.delay_feed_1 = value;
+        self
     }
 
-    fn set_damp(&mut self, value: f32) {
-        self.damp = value * Reverb::SCALE_DAMP;
-        self.update();
+    /// Set input diffusion 2 amount, [0,1]
+    pub fn diffusion2(&mut self, value: f32) -> &mut Reverb {
+        self.delay_feed_2 = value;
+        self
     }
 
-    fn set_wet(&mut self, value: f32) {
-        self.wet = value * Reverb::SCALE_WET;
-        self.update();
+    /// Set tank decay diffusion 1 amount, [0,1]
+    pub fn diffusion_decay_1(&mut self, value: f32) -> &mut Reverb {
+        self.decay_1 = value;
+        self
     }
 
-    fn set_width(&mut self, value: f32) {
-        self.width = value;
-        self.update();
-    }
-}
-
-#[derive(Debug)]
-struct CombFilter {
-    buffer: Vec<f32>,
-
-    buffer_index: usize,
-    filter_store: f32,
-
-    feedback: f32,
-    damp1: f32,
-    damp2: f32,
-}
-
-impl CombFilter {
-    fn new(buffer_size: usize) -> Self {
-        Self {
-            buffer: vec![0.0; buffer_size],
-            buffer_index: 0,
-            filter_store: 0.0,
-            feedback: 0.0,
-            damp1: 0.0,
-            damp2: 0.0,
-        }
+    /// Set tank decay diffusion 2 amount, [0,1]
+    pub fn diffusion_decay_2(&mut self, value: f32) -> &mut Reverb {
+        self.decay_2 = value;
+        self
     }
 
-    fn mute(&mut self) {
-        self.buffer.fill(0.0);
-        self.filter_store = 0.0;
-    }
+    /// Compute wet stereo output from dry mono input
+    /// @param[ in] in      dry input sample
+    /// @param[out] out1    wet output sample 1
+    /// @param[out] out2    wet output sample 2    
+    pub fn render(&mut self, input: f32) -> (f32, f32) {
+        let mut value = self.pre_delay.get_write_and_step(input * 0.5);
+        value = self.one_pole.call(value);
+        value = self.all_pass_in_1.allpass(value, self.delay_feed_1);
+        value = self.all_pass_in_2.allpass(value, self.delay_feed_1);
+        value = self.all_pass_in_3.allpass(value, self.delay_feed_2);
+        value = self.all_pass_in_4.allpass(value, self.delay_feed_2);
 
-    fn process(&mut self, input_block: &[f32], output_block: &mut [f32]) {
-        let buffer_length = self.buffer.len();
-        let output_block_length = output_block.len();
+        let mut a = value + self.delay_22.back() * self.decay;
+        let mut b = value + self.delay_12.back() * self.decay;
 
-        let mut block_index: usize = 0;
-        while block_index < output_block_length {
-            if self.buffer_index == buffer_length {
-                self.buffer_index = 0;
-            }
+        a = self.all_pass_decay_11.allpass(a, -self.decay_1);
+        a = self.delay_11.get_write_and_step(a);
+        a = self.one_pole_1.call(a) * self.decay;
+        a = self.all_pass_decay_12.allpass(a, self.decay_2);
+        self.delay_12.write(a);
 
-            let src_rem = buffer_length - self.buffer_index;
-            let dst_rem = output_block_length - block_index;
-            let rem = cmp::min(src_rem, dst_rem);
+        b = self.all_pass_decay_21.allpass(b, -self.decay_1);
+        b = self.delay_21.get_write_and_step(b);
+        b = self.one_pole_2.call(b) * self.decay;
+        b = self.all_pass_decay_22.allpass(b, self.decay_2);
+        self.delay_22.write(b);
 
-            for t in 0..rem {
-                let block_pos = block_index + t;
-                let buffer_pos = self.buffer_index + t;
+        let output_1 = {
+            self.delay_21.read(266) + self.delay_21.read(2974) - self.all_pass_decay_22.read(1913)
+                + self.delay_22.read(1996)
+                - self.delay_11.read(1990)
+                - self.all_pass_decay_12.read(187)
+                - self.delay_12.read(1066)
+        };
 
-                let input = input_block[block_pos];
+        let output_2 = {
+            self.delay_11.read(353) + self.delay_11.read(3627) - self.all_pass_decay_12.read(1228)
+                + self.delay_12.read(2673)
+                - self.delay_21.read(2111)
+                - self.all_pass_decay_22.read(335)
+                - self.delay_22.read(121)
+        };
 
-                // The following ifs are to avoid performance problem due to denormalized number.
-                // The original implementation uses unsafe cast to detect denormalized number.
-                // I tried to reproduce the original implementation using Unsafe.As,
-                // but the simple Math.Abs version was faster according to some benchmarks.
-
-                let mut output = self.buffer[buffer_pos];
-                if output.abs() < 1.0E-6 {
-                    output = 0.0;
-                }
-
-                self.filter_store = (output * self.damp2) + (self.filter_store * self.damp1);
-                if self.filter_store.abs() < 1.0E-6 {
-                    self.filter_store = 0.0;
-                }
-
-                self.buffer[buffer_pos] = input + (self.filter_store * self.feedback);
-                output_block[block_pos] += output;
-            }
-
-            self.buffer_index += rem;
-            block_index += rem;
-        }
-    }
-
-    fn set_feedback(&mut self, value: f32) {
-        self.feedback = value;
-    }
-
-    fn set_damp(&mut self, value: f32) {
-        self.damp1 = value;
-        self.damp2 = 1.0 - value;
-    }
-}
-
-#[derive(Debug)]
-struct AllPassFilter {
-    buffer: Vec<f32>,
-
-    buffer_index: usize,
-
-    feedback: f32,
-}
-
-impl AllPassFilter {
-    fn new(buffer_size: usize) -> Self {
-        Self {
-            buffer: vec![0.0; buffer_size],
-            buffer_index: 0,
-            feedback: 0.0,
-        }
-    }
-
-    fn mute(&mut self) {
-        self.buffer.fill(0.0);
-    }
-
-    fn process(&mut self, block: &mut [f32]) {
-        let buffer_length = self.buffer.len();
-        let block_length = block.len();
-
-        let mut block_index: usize = 0;
-        while block_index < block_length {
-            if self.buffer_index == buffer_length {
-                self.buffer_index = 0;
-            }
-
-            let src_rem = buffer_length - self.buffer_index;
-            let dst_rem = block_length - block_index;
-            let rem = cmp::min(src_rem, dst_rem);
-
-            for t in 0..rem {
-                let block_pos = block_index + t;
-                let buffer_pos = self.buffer_index + t;
-
-                let input = block[block_pos];
-
-                let mut bufout = self.buffer[buffer_pos];
-                if bufout.abs() < 1.0E-6 {
-                    bufout = 0.0;
-                }
-
-                block[block_pos] = bufout - input;
-                self.buffer[buffer_pos] = input + (bufout * self.feedback);
-            }
-
-            self.buffer_index += rem;
-            block_index += rem;
-        }
-    }
-
-    fn set_feedback(&mut self, value: f32) {
-        self.feedback = value;
+        (output_1, output_2)
     }
 }

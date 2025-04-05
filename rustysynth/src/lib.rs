@@ -9,7 +9,9 @@ mod synthesizer;
 mod voice;
 mod volume_envelope;
 
-mod chorus;
+// XXX chorus
+// XXX echo
+// XXX delay
 mod reverb;
 
 pub use self::synthesizer::{Sound, SoundSource, Synthesizer};

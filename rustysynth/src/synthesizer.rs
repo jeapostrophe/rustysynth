@@ -1,5 +1,4 @@
 use crate::channel::Channel;
-use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 use crate::soundfont_math::NON_AUDIBLE;
 use crate::voice::Voice;
@@ -54,7 +53,6 @@ pub struct Synthesizer<Source, const CHANNELS: usize = 8, const VOICES: usize = 
     voices: [Voice; VOICES],
     master_volume: f32,
     reverb: Reverb,
-    chorus: Chorus,
 }
 
 macro_rules! set_channel {
@@ -81,7 +79,6 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
             voices: core::array::from_fn(|_| Voice::default()),
             master_volume: 0.5,
             reverb: Reverb::default(),
-            chorus: Chorus::default(),
         }
     }
 
@@ -199,8 +196,7 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
         for channel in &mut self.channels {
             channel.reset();
         }
-        self.reverb.mute();
-        self.chorus.mute();
+        self.reverb.reset();
     }
 
     pub fn render(&mut self) -> (f32, f32) {
@@ -222,10 +218,8 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
 
         let mut left = 0.0;
         let mut right = 0.0;
-        // XXX Add back in reverb and chorus
         let mut reverb_input = 0.0;
-        let mut chorus_input_left = 0.0;
-        let mut chorus_input_right = 0.0;
+        // XXX chorus
 
         let data = self.sound_font.wave_data();
 
@@ -267,18 +261,15 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
             */
 
             // Reverb
-            /*
+
             write(
-                self.reverb.get_input_gain()
-                    * voice.previous_reverb_send
+                voice.previous_reverb_send
                     * (voice.previous_mix_gain_left + voice.previous_mix_gain_right),
-                self.reverb.get_input_gain()
-                    * voice.current_reverb_send
+                voice.current_reverb_send
                     * (voice.current_mix_gain_left + voice.current_mix_gain_right),
-                *voice_out,
+                voice_out,
                 &mut reverb_input,
             );
-            */
         }
 
         /* XXX
@@ -287,10 +278,10 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
                 multiply_add1(self.master_volume, chorus_output_left, &mut left);
                 multiply_add1(self.master_volume, chorus_output_right, &mut right);
 
-                let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
-                multiply_add1(self.master_volume, reverb_output_left, &mut left);
-                multiply_add1(self.master_volume, reverb_output_right, &mut right);
         */
+        let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
+        multiply_add1(self.master_volume, reverb_output_left, &mut left);
+        multiply_add1(self.master_volume, reverb_output_right, &mut right);
 
         (left, right)
     }
