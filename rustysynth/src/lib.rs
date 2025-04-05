@@ -7,7 +7,6 @@ mod modulation_envelope;
 mod oscillator;
 mod synthesizer;
 mod voice;
-mod voice_collection;
 mod volume_envelope;
 
 mod chorus;

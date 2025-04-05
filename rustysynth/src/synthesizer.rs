@@ -1,7 +1,7 @@
 use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
-use crate::voice_collection::VoiceCollection;
+use crate::voice::Voice;
 use crate::LoopMode;
 use anyhow::Result;
 
@@ -50,7 +50,7 @@ pub trait SoundSource {
 pub struct Synthesizer<Source> {
     pub(crate) sound_font: Source,
     channels: Vec<Channel>,
-    voices: VoiceCollection,
+    voices: Vec<Voice>,
     master_volume: f32,
     reverb: Reverb,
     chorus: Chorus,
@@ -136,7 +136,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
         Self {
             sound_font: sound_font_pre.into(),
             channels,
-            voices: VoiceCollection::default(),
+            voices: Vec::new(),
             master_volume: 0.5,
             reverb: Reverb::default(),
             chorus: Chorus::default(),
@@ -165,7 +165,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
     set_channel!(set_pitch_bend, u16);
 
     pub fn note_off(&mut self, channel: i32, key: i32) {
-        for voice in &mut self.voices.0 {
+        for voice in &mut self.voices {
             if voice.channel == channel && voice.key == key {
                 voice.end();
             }
@@ -178,6 +178,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
             return;
         }
 
+        let voice_idx = self.allocate_voice();
         let channel_info = &self.channels[channel as usize];
 
         if let Ok(region_pair) = self.sound_font.get_regions(
@@ -186,23 +187,51 @@ impl<Source: SoundSource> Synthesizer<Source> {
             key,
             velocity,
         ) {
-            let value = self.voices.request_new();
-            value.start(&region_pair, channel, key, velocity)
+            self.voices[voice_idx].start(&region_pair, channel, key, velocity)
         }
+    }
+
+    fn allocate_voice(&mut self) -> usize {
+        let voices = &mut self.voices;
+        let mut candidate: usize = voices.len();
+
+        // If the number of active voices is less than the limit, use a free one.
+        if candidate < crate::MAXIMUM_POLYPHONY {
+            voices.push(Voice::default());
+        } else {
+            // Too many active voices...
+            // Find one which has the lowest priority.
+            let mut lowest_priority = f32::MAX;
+            for i in 0..voices.len() {
+                let voice = &voices[i];
+                let priority = voice.get_priority();
+                if priority < lowest_priority {
+                    lowest_priority = priority;
+                    candidate = i;
+                } else if priority == lowest_priority {
+                    // Same priority...
+                    // The older one should be more suitable for reuse.
+                    if voice.voice_length > voices[candidate].voice_length {
+                        candidate = i;
+                    }
+                }
+            }
+        }
+        candidate
     }
 
     pub fn note_off_all(&mut self, immediate: bool) {
         if immediate {
             self.voices.clear();
         } else {
-            for voice in &mut self.voices.0 {
+            for voice in &mut self.voices {
                 voice.end();
             }
         }
     }
 
     pub fn note_off_all_channel(&mut self, channel: i32, immediate: bool) {
-        for voice in &mut self.voices.0 {
+        for voice in &mut self.voices {
             if voice.channel == channel {
                 if immediate {
                     voice.kill();
@@ -234,10 +263,6 @@ impl<Source: SoundSource> Synthesizer<Source> {
     }
 
     pub fn render(&mut self) -> (f32, f32) {
-        let voice_outs = self
-            .voices
-            .render(self.sound_font.wave_data(), &self.channels);
-
         let mut left = 0.0;
         let mut right = 0.0;
         // XXX Add back in reverb and chorus
@@ -245,18 +270,26 @@ impl<Source: SoundSource> Synthesizer<Source> {
         let mut chorus_input_left = 0.0;
         let mut chorus_input_right = 0.0;
 
-        for (voice, voice_out) in self.voices.0.iter().zip(voice_outs.iter()) {
+        let data = self.sound_font.wave_data();
+
+        self.voices.retain_mut(|voice| {
+            let channel_info = &self.channels[voice.channel as usize];
+            let vo = voice.render(data, channel_info);
+            if vo.is_none() {
+                return false;
+            }
+            let voice_out = vo.unwrap();
             // Normal output
             array_math::write(
                 self.master_volume * voice.previous_mix_gain_left,
                 self.master_volume * voice.current_mix_gain_left,
-                *voice_out,
+                voice_out,
                 &mut left,
             );
             array_math::write(
                 self.master_volume * voice.previous_mix_gain_right,
                 self.master_volume * voice.current_mix_gain_right,
-                *voice_out,
+                voice_out,
                 &mut right,
             );
 
@@ -289,7 +322,8 @@ impl<Source: SoundSource> Synthesizer<Source> {
                 &mut reverb_input,
             );
             */
-        }
+            true
+        });
 
         /* XXX
                 let (chorus_output_left, chorus_output_right) =
