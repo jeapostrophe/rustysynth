@@ -15,14 +15,14 @@ pub(crate) struct Chorus {
 
 impl Default for Chorus {
     fn default() -> Self {
-        let delay = 0.002_f64;
-        let depth = 0.0019_f64;
-        let frequency = 0.4_f64;
+        let delay = 0.002;
+        let depth = 0.0019;
+        let frequency = 0.4;
         let sample_rate = crate::SAMPLE_RATE;
-        let buffer_l = vec![0_f32; ((sample_rate as f64) * (delay + depth)) as usize + 2];
-        let buffer_r = vec![0_f32; ((sample_rate as f64) * (delay + depth)) as usize + 2];
+        let buffer_l = vec![0.0; ((sample_rate as f64) * (delay + depth)) as usize + 2];
+        let buffer_r = vec![0.0; ((sample_rate as f64) * (delay + depth)) as usize + 2];
 
-        let mut delay_table = vec![0_f32; ((sample_rate as f64) / frequency).round() as usize];
+        let mut delay_table = vec![0.0; ((sample_rate as f64) / frequency).round() as usize];
         let delay_table_length = delay_table.len();
         for (t, input) in delay_table.iter_mut().enumerate().take(delay_table_length) {
             let phase = 2.0 * consts::PI * (t as f64) / (delay_table_length as f64);
@@ -119,11 +119,11 @@ impl Chorus {
         let buffer_length = self.buffer_l.len();
 
         for t in 0..buffer_length {
-            self.buffer_l[t] = 0_f32;
+            self.buffer_l[t] = 0.0;
         }
 
         for t in 0..buffer_length {
-            self.buffer_r[t] = 0_f32;
+            self.buffer_r[t] = 0.0;
         }
     }
 }

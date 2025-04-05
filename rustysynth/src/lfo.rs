@@ -33,15 +33,15 @@ impl Lfo {
         self.current_time += 1.0;
 
         self.value = if self.current_time < self.delay {
-            0_f32
+            0.0
         } else {
             let phase = ((self.current_time - self.delay) % self.period) / self.period;
             if phase < 0.25 {
-                (4_f64 * phase) as f32
+                (4.0 * phase) as f32
             } else if phase < 0.75 {
-                (4_f64 * (0.5 - phase)) as f32
+                (4.0 * (0.5 - phase)) as f32
             } else {
-                (4_f64 * (phase - 1.0)) as f32
+                (4.0 * (phase - 1.0)) as f32
             }
         };
         self.value

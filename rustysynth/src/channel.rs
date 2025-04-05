@@ -48,7 +48,7 @@ impl Channel {
             pitch_bend_range: 0,
             coarse_tune: 0,
             fine_tune: 0,
-            pitch_bend: 0_f32,
+            pitch_bend: 0.0,
             last_data_type: DataType::None,
         };
 
@@ -75,7 +75,7 @@ impl Channel {
         self.coarse_tune = 0;
         self.fine_tune = 8192;
 
-        self.pitch_bend = 0_f32;
+        self.pitch_bend = 0.0;
     }
 
     pub(crate) fn reset_all_controllers(&mut self) {
@@ -85,7 +85,7 @@ impl Channel {
 
         self.rpn = -1;
 
-        self.pitch_bend = 0_f32;
+        self.pitch_bend = 0.0;
     }
 
     pub(crate) fn set_bank(&mut self, value: i32) {
@@ -189,7 +189,7 @@ impl Channel {
     }
 
     pub(crate) fn set_pitch_bend(&mut self, value: i32) {
-        self.pitch_bend = (1_f32 / 8192_f32) * (value - 8192) as f32;
+        self.pitch_bend = (1.0 / 8192.0) * (value - 8192) as f32;
     }
 
     pub(crate) fn get_bank_number(&self) -> i32 {
@@ -201,19 +201,19 @@ impl Channel {
     }
 
     pub(crate) fn get_modulation(&self) -> f32 {
-        (50_f32 / 16383_f32) * self.modulation as f32
+        (50.0 / 16383.0) * self.modulation as f32
     }
 
     pub(crate) fn get_volume(&self) -> f32 {
-        (1_f32 / 16383_f32) * self.volume as f32
+        (1.0 / 16383.0) * self.volume as f32
     }
 
     pub(crate) fn get_pan(&self) -> f32 {
-        (100_f32 / 16383_f32) * self.pan as f32 - 50_f32
+        (100.0 / 16383.0) * self.pan as f32 - 50.0
     }
 
     pub(crate) fn get_expression(&self) -> f32 {
-        (1_f32 / 16383_f32) * self.expression as f32
+        (1.0 / 16383.0) * self.expression as f32
     }
 
     pub(crate) fn get_hold_pedal(&self) -> bool {
@@ -221,19 +221,19 @@ impl Channel {
     }
 
     pub(crate) fn get_reverb_send(&self) -> f32 {
-        (1_f32 / 127_f32) * self.reverb_send as f32
+        (1.0 / 127.0) * self.reverb_send as f32
     }
 
     pub(crate) fn get_chorus_send(&self) -> f32 {
-        (1_f32 / 127_f32) * self.chorus_send as f32
+        (1.0 / 127.0) * self.chorus_send as f32
     }
 
     pub(crate) fn get_pitch_bend_range(&self) -> f32 {
-        (self.pitch_bend_range >> 7) as f32 + 0.01_f32 * (self.pitch_bend_range & 0x7F) as f32
+        (self.pitch_bend_range >> 7) as f32 + 0.01 * (self.pitch_bend_range & 0x7F) as f32
     }
 
     pub(crate) fn get_tune(&self) -> f32 {
-        self.coarse_tune as f32 + (1_f32 / 8192_f32) * (self.fine_tune - 8192) as f32
+        self.coarse_tune as f32 + (1.0 / 8192.0) * (self.fine_tune - 8192) as f32
     }
 
     pub(crate) fn get_pitch_bend(&self) -> f32 {

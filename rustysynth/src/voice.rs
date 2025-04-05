@@ -16,7 +16,7 @@ enum VoiceState {
     Released,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Voice {
     vol_env: VolumeEnvelope,
     mod_env: ModulationEnvelope,
@@ -73,47 +73,6 @@ pub(crate) struct Voice {
     pub(crate) voice_length: usize,
 }
 
-impl Default for Voice {
-    fn default() -> Self {
-        Self {
-            vol_env: VolumeEnvelope::default(),
-            mod_env: ModulationEnvelope::default(),
-            vib_lfo: Lfo::default(),
-            mod_lfo: Lfo::default(),
-            oscillator: Oscillator::default(),
-            filter: BiQuadFilter::default(),
-            previous_mix_gain_left: 0_f32,
-            previous_mix_gain_right: 0_f32,
-            current_mix_gain_left: 0_f32,
-            current_mix_gain_right: 0_f32,
-            previous_reverb_send: 0_f32,
-            previous_chorus_send: 0_f32,
-            current_reverb_send: 0_f32,
-            current_chorus_send: 0_f32,
-            channel: 0,
-            key: 0,
-            velocity: 0,
-            note_gain: 0_f32,
-            cutoff: 0_f32,
-            resonance: 0_f32,
-            vib_lfo_to_pitch: 0_f32,
-            mod_lfo_to_pitch: 0_f32,
-            mod_env_to_pitch: 0_f32,
-            mod_lfo_to_cutoff: 0,
-            mod_env_to_cutoff: 0,
-            dynamic_cutoff: false,
-            mod_lfo_to_volume: 0_f32,
-            dynamic_volume: false,
-            instrument_pan: 0_f32,
-            instrument_reverb: 0_f32,
-            instrument_chorus: 0_f32,
-            smoothed_cutoff: 0_f32,
-            voice_state: VoiceState::default(),
-            voice_length: 0,
-        }
-    }
-}
-
 impl Voice {
     pub(crate) fn start<S: Sound>(&mut self, region: &S, channel: i32, key: i32, velocity: i32) {
         self.channel = channel;
@@ -123,12 +82,11 @@ impl Voice {
         if velocity > 0 {
             // According to the Polyphone's implementation, the initial attenuation should be reduced to 40%.
             // I'm not sure why, but this indeed improves the loudness variability.
-            let sample_attenuation = 0.4_f32 * region.get_initial_attenuation();
-            let decibels =
-                2_f32 * linear_to_decibels(velocity as f32 / 127_f32) - sample_attenuation;
+            let sample_attenuation = 0.4 * region.get_initial_attenuation();
+            let decibels = 2.0 * linear_to_decibels(velocity as f32 / 127.0) - sample_attenuation;
             self.note_gain = decibels_to_linear(decibels);
         } else {
-            self.note_gain = 0_f32;
+            self.note_gain = 0.0;
         }
 
         self.cutoff = region.get_initial_filter_cutoff_frequency();
@@ -144,10 +102,10 @@ impl Voice {
         self.dynamic_cutoff = false;
 
         self.mod_lfo_to_volume = 0.0;
-        self.dynamic_volume = self.mod_lfo_to_volume > 0.05_f32;
+        self.dynamic_volume = self.mod_lfo_to_volume > 0.05;
 
         self.instrument_pan = 0.0;
-        self.instrument_reverb = 0.01_f32 * region.get_reverb_effects_send();
+        self.instrument_reverb = 0.01 * region.get_reverb_effects_send();
         self.instrument_chorus = 0.0;
 
         self.vol_env.start(
@@ -157,12 +115,12 @@ impl Voice {
             region.get_decay_volume_envelope(),
             decibels_to_linear(-region.get_sustain_volume_envelope()),
             // If the release time is shorter than 10 ms, it will be clamped to 10 ms to avoid pop noise.
-            region.get_release_volume_envelope().max(0.01_f32),
+            region.get_release_volume_envelope().max(0.01),
         );
         self.mod_env.start(
             region.get_delay_modulation_envelope(),
             // According to the implementation of TinySoundFont, the attack time should be adjusted by the velocity.
-            region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144_f32),
+            region.get_attack_modulation_envelope() * ((145 - velocity) as f32 / 144.0),
             region.get_hold_modulation_envelope(),
             region.get_decay_modulation_envelope(),
             region.get_release_modulation_envelope(),
@@ -201,7 +159,7 @@ impl Voice {
     }
 
     pub(crate) fn kill(&mut self) {
-        self.note_gain = 0_f32;
+        self.note_gain = 0.0;
     }
 
     pub(crate) fn render(&mut self, data: &[i16], channel_info: &Channel) -> Option<f32> {
@@ -221,7 +179,7 @@ impl Voice {
         let mod_lfo_output = self.mod_lfo.render();
 
         let vib_pitch_change =
-            (0.01_f32 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * vib_lfo_output;
+            (0.01 * channel_info.get_modulation() + self.vib_lfo_to_pitch) * vib_lfo_output;
         let mod_pitch_change =
             self.mod_lfo_to_pitch * mod_lfo_output + self.mod_env_to_pitch * mod_env_output;
         let channel_pitch_change = channel_info.get_tune() + channel_info.get_pitch_bend();
@@ -240,8 +198,8 @@ impl Voice {
             let new_cutoff = factor * self.cutoff;
 
             // The cutoff change is limited within x0.5 and x2 to reduce pop noise.
-            let lower_limit = 0.5_f32 * self.smoothed_cutoff;
-            let upper_limit = 2_f32 * self.smoothed_cutoff;
+            let lower_limit = 0.5 * self.smoothed_cutoff;
+            let upper_limit = 2.0 * self.smoothed_cutoff;
             self.smoothed_cutoff = new_cutoff.clamp(lower_limit, upper_limit);
 
             self.filter
@@ -264,13 +222,12 @@ impl Voice {
             mix_gain *= decibels_to_linear(decibels);
         }
 
-        let angle =
-            (consts::PI / 200_f32) * (channel_info.get_pan() + self.instrument_pan + 50_f32);
-        if angle <= 0_f32 {
+        let angle = (consts::PI / 200.0) * (channel_info.get_pan() + self.instrument_pan + 50.0);
+        if angle <= 0.0 {
             self.current_mix_gain_left = mix_gain;
-            self.current_mix_gain_right = 0_f32;
+            self.current_mix_gain_right = 0.0;
         } else if angle >= HALF_PI {
-            self.current_mix_gain_left = 0_f32;
+            self.current_mix_gain_left = 0.0;
             self.current_mix_gain_right = mix_gain;
         } else {
             self.current_mix_gain_left = mix_gain * angle.cos();
@@ -278,9 +235,9 @@ impl Voice {
         }
 
         self.current_reverb_send =
-            (channel_info.get_reverb_send() + self.instrument_reverb).clamp(0_f32, 1_f32);
+            (channel_info.get_reverb_send() + self.instrument_reverb).clamp(0.0, 1.0);
         self.current_chorus_send =
-            (channel_info.get_chorus_send() + self.instrument_chorus).clamp(0_f32, 1_f32);
+            (channel_info.get_chorus_send() + self.instrument_chorus).clamp(0.0, 1.0);
 
         if self.voice_length == 0 {
             self.previous_mix_gain_left = self.current_mix_gain_left;

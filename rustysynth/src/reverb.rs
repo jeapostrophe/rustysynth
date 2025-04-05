@@ -57,11 +57,11 @@ impl Default for Reverb {
         ];
 
         for apf in apfs_l.iter_mut() {
-            apf.set_feedback(0.5_f32);
+            apf.set_feedback(0.5);
         }
 
         for apf in apfs_r.iter_mut() {
-            apf.set_feedback(0.5_f32);
+            apf.set_feedback(0.5);
         }
 
         let mut reverb = Reverb {
@@ -69,15 +69,15 @@ impl Default for Reverb {
             cfs_r,
             apfs_l,
             apfs_r,
-            gain: 0_f32,
-            room_size: 0_f32,
-            room_size1: 0_f32,
-            damp: 0_f32,
-            damp1: 0_f32,
-            wet: 0_f32,
-            wet1: 0_f32,
-            wet2: 0_f32,
-            width: 0_f32,
+            gain: 0.0,
+            room_size: 0.0,
+            room_size1: 0.0,
+            damp: 0.0,
+            damp1: 0.0,
+            wet: 0.0,
+            wet1: 0.0,
+            wet2: 0.0,
+            width: 0.0,
         };
 
         reverb.set_wet(Reverb::INITIAL_WET);
@@ -145,7 +145,7 @@ impl Reverb {
     }
 
     fn scale_tuning(tuning: usize) -> usize {
-        ((crate::SAMPLE_RATE as f64) / 44100_f64 * (tuning as f64)).round() as usize
+        ((crate::SAMPLE_RATE as f64) / 44100.0 * (tuning as f64)).round() as usize
     }
 
     pub(crate) fn process(
@@ -159,10 +159,10 @@ impl Reverb {
         let output_right_length = output_right.len();
 
         for lsample in output_left.iter_mut().take(output_left_length) {
-            *lsample = 0_f32;
+            *lsample = 0.0;
         }
         for rsample in output_right.iter_mut().take(output_right_length) {
-            *rsample = 0_f32;
+            *rsample = 0.0;
         }
 
         for cf in self.cfs_l.iter_mut() {
@@ -182,7 +182,7 @@ impl Reverb {
         }
 
         // With the default settings, we can skip this part.
-        if 1_f32 - self.wet1 > 1.0E-3_f32 || self.wet2 > 1.0E-3_f32 {
+        if 1.0 - self.wet1 > 1.0E-3 || self.wet2 > 1.0E-3 {
             for t in 0..input_length {
                 let left = output_left[t];
                 let right = output_right[t];
@@ -193,8 +193,8 @@ impl Reverb {
     }
 
     fn update(&mut self) {
-        self.wet1 = self.wet * (self.width / 2_f32 + 0.5_f32);
-        self.wet2 = self.wet * ((1_f32 - self.width) / 2_f32);
+        self.wet1 = self.wet * (self.width / 2.0 + 0.5);
+        self.wet2 = self.wet * ((1.0 - self.width) / 2.0);
 
         self.room_size1 = self.room_size;
         self.damp1 = self.damp;
@@ -251,18 +251,18 @@ struct CombFilter {
 impl CombFilter {
     fn new(buffer_size: usize) -> Self {
         Self {
-            buffer: vec![0_f32; buffer_size],
+            buffer: vec![0.0; buffer_size],
             buffer_index: 0,
-            filter_store: 0_f32,
-            feedback: 0_f32,
-            damp1: 0_f32,
-            damp2: 0_f32,
+            filter_store: 0.0,
+            feedback: 0.0,
+            damp1: 0.0,
+            damp2: 0.0,
         }
     }
 
     fn mute(&mut self) {
-        self.buffer.fill(0_f32);
-        self.filter_store = 0_f32;
+        self.buffer.fill(0.0);
+        self.filter_store = 0.0;
     }
 
     fn process(&mut self, input_block: &[f32], output_block: &mut [f32]) {
@@ -291,13 +291,13 @@ impl CombFilter {
                 // but the simple Math.Abs version was faster according to some benchmarks.
 
                 let mut output = self.buffer[buffer_pos];
-                if output.abs() < 1.0E-6_f32 {
-                    output = 0_f32;
+                if output.abs() < 1.0E-6 {
+                    output = 0.0;
                 }
 
                 self.filter_store = (output * self.damp2) + (self.filter_store * self.damp1);
-                if self.filter_store.abs() < 1.0E-6_f32 {
-                    self.filter_store = 0_f32;
+                if self.filter_store.abs() < 1.0E-6 {
+                    self.filter_store = 0.0;
                 }
 
                 self.buffer[buffer_pos] = input + (self.filter_store * self.feedback);
@@ -315,7 +315,7 @@ impl CombFilter {
 
     fn set_damp(&mut self, value: f32) {
         self.damp1 = value;
-        self.damp2 = 1_f32 - value;
+        self.damp2 = 1.0 - value;
     }
 }
 
@@ -331,14 +331,14 @@ struct AllPassFilter {
 impl AllPassFilter {
     fn new(buffer_size: usize) -> Self {
         Self {
-            buffer: vec![0_f32; buffer_size],
+            buffer: vec![0.0; buffer_size],
             buffer_index: 0,
-            feedback: 0_f32,
+            feedback: 0.0,
         }
     }
 
     fn mute(&mut self) {
-        self.buffer.fill(0_f32);
+        self.buffer.fill(0.0);
     }
 
     fn process(&mut self, block: &mut [f32]) {
@@ -362,8 +362,8 @@ impl AllPassFilter {
                 let input = block[block_pos];
 
                 let mut bufout = self.buffer[buffer_pos];
-                if bufout.abs() < 1.0E-6_f32 {
-                    bufout = 0_f32;
+                if bufout.abs() < 1.0E-6 {
+                    bufout = 0.0;
                 }
 
                 block[block_pos] = bufout - input;

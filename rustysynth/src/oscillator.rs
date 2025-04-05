@@ -26,7 +26,7 @@ pub(crate) struct Oscillator {
 impl Oscillator {
     const FRAC_BITS: i32 = 24;
     const FRAC_UNIT: i64 = 1_i64 << Oscillator::FRAC_BITS;
-    const FP_TO_SAMPLE: f32 = 1_f32 / (32768 * Oscillator::FRAC_UNIT) as f32;
+    const FP_TO_SAMPLE: f32 = 1.0 / (32768 * Oscillator::FRAC_UNIT) as f32;
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn start(
@@ -48,7 +48,7 @@ impl Oscillator {
         self.end_loop = end_loop;
         self.root_key = root_key;
 
-        self.tune = 0.01_f32 * fine_tune as f32;
+        self.tune = 0.01 * fine_tune as f32;
         self.sample_rate_ratio = sample_rate as f32 / crate::SAMPLE_RATE as f32;
         self.looping = self.loop_mode != LoopMode::NoLoop;
         self.position_fp = (start as i64) << Oscillator::FRAC_BITS;
@@ -62,7 +62,7 @@ impl Oscillator {
 
     pub(crate) fn render(&mut self, data: &[i16], pitch: f32) -> Option<f32> {
         let pitch_change = (pitch - self.root_key as f32) + self.tune;
-        let pitch_ratio = self.sample_rate_ratio * 2_f32.powf(pitch_change / 12_f32);
+        let pitch_ratio = self.sample_rate_ratio * 2_f32.powf(pitch_change / 12.0);
         self.fill_block(data, pitch_ratio as f64)
     }
 
