@@ -1,6 +1,7 @@
 use crate::channel::Channel;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
+use crate::soundfont_math::NON_AUDIBLE;
 use crate::voice::Voice;
 use crate::LoopMode;
 use anyhow::Result;
@@ -57,60 +58,6 @@ pub struct Synthesizer<Source> {
 }
 
 pub const CHANNELS: usize = 16;
-
-// XXX replace these functions with some SIMD operations
-mod array_math {
-    use crate::soundfont_math::*;
-
-    pub fn multiply_add(a: f32, x: &[f32], destination: &mut [f32]) {
-        for (x, destination) in x.iter().zip(destination.iter_mut()) {
-            *destination += a * *x;
-        }
-    }
-
-    pub fn multiply_add_slope(a: f32, step: f32, x: &[f32], destination: &mut [f32]) {
-        let mut a = a;
-        for (x, destination) in x.iter().zip(destination.iter_mut()) {
-            *destination += a * *x;
-            a += step;
-        }
-    }
-
-    pub fn write_block(
-        previous_gain: f32,
-        current_gain: f32,
-        source: &[f32],
-        destination: &mut [f32],
-        inverse_block_size: f32,
-    ) {
-        if previous_gain.max(current_gain) < NON_AUDIBLE {
-            return;
-        }
-
-        if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
-            multiply_add(current_gain, source, destination);
-        } else {
-            let step = inverse_block_size * (current_gain - previous_gain);
-            multiply_add_slope(previous_gain, step, source, destination);
-        }
-    }
-
-    pub fn multiply_add1(a: f32, x: f32, destination: &mut f32) {
-        *destination += a * x;
-    }
-
-    pub fn write(previous_gain: f32, current_gain: f32, source: f32, destination: &mut f32) {
-        if previous_gain.max(current_gain) < NON_AUDIBLE {
-            return;
-        }
-
-        if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
-            multiply_add1(current_gain, source, destination);
-        } else {
-            multiply_add1(previous_gain, source, destination);
-        }
-    }
-}
 
 macro_rules! set_channel {
     ($synth_fun:ident) => {
@@ -263,6 +210,22 @@ impl<Source: SoundSource> Synthesizer<Source> {
     }
 
     pub fn render(&mut self) -> (f32, f32) {
+        fn multiply_add1(a: f32, x: f32, destination: &mut f32) {
+            *destination += a * x;
+        }
+
+        fn write(previous_gain: f32, current_gain: f32, source: f32, destination: &mut f32) {
+            if previous_gain.max(current_gain) < NON_AUDIBLE {
+                return;
+            }
+
+            if (current_gain - previous_gain).abs() < 1.0E-3_f32 {
+                multiply_add1(current_gain, source, destination);
+            } else {
+                multiply_add1(previous_gain, source, destination);
+            }
+        }
+
         let mut left = 0.0;
         let mut right = 0.0;
         // XXX Add back in reverb and chorus
@@ -280,13 +243,13 @@ impl<Source: SoundSource> Synthesizer<Source> {
             }
             let voice_out = vo.unwrap();
             // Normal output
-            array_math::write(
+            write(
                 self.master_volume * voice.previous_mix_gain_left,
                 self.master_volume * voice.current_mix_gain_left,
                 voice_out,
                 &mut left,
             );
-            array_math::write(
+            write(
                 self.master_volume * voice.previous_mix_gain_right,
                 self.master_volume * voice.current_mix_gain_right,
                 voice_out,
@@ -295,13 +258,13 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
             // Chorus
             /*
-            array_math::write(
+            write(
                 voice.previous_chorus_send * voice.previous_mix_gain_left,
                 voice.current_chorus_send * voice.current_mix_gain_left,
                 *voice_out,
                 &mut chorus_input_left,
             );
-            array_math::write(
+            write(
                 voice.previous_chorus_send * voice.previous_mix_gain_right,
                 voice.current_chorus_send * voice.current_mix_gain_right,
                 *voice_out,
@@ -311,7 +274,7 @@ impl<Source: SoundSource> Synthesizer<Source> {
 
             // Reverb
             /*
-            array_math::write(
+            write(
                 self.reverb.get_input_gain()
                     * voice.previous_reverb_send
                     * (voice.previous_mix_gain_left + voice.previous_mix_gain_right),
@@ -328,12 +291,12 @@ impl<Source: SoundSource> Synthesizer<Source> {
         /* XXX
                 let (chorus_output_left, chorus_output_right) =
                     self.chorus.render(chorus_input_left, chorus_input_right);
-                array_math::multiply_add1(self.master_volume, chorus_output_left, &mut left);
-                array_math::multiply_add1(self.master_volume, chorus_output_right, &mut right);
+                multiply_add1(self.master_volume, chorus_output_left, &mut left);
+                multiply_add1(self.master_volume, chorus_output_right, &mut right);
 
                 let (reverb_output_left, reverb_output_right) = self.reverb.render(reverb_input);
-                array_math::multiply_add1(self.master_volume, reverb_output_left, &mut left);
-                array_math::multiply_add1(self.master_volume, reverb_output_right, &mut right);
+                multiply_add1(self.master_volume, reverb_output_left, &mut left);
+                multiply_add1(self.master_volume, reverb_output_right, &mut right);
         */
 
         (left, right)
