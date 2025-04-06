@@ -1,6 +1,7 @@
 use crate::LoopMode;
 use std::{ops::Index, sync::Arc};
 
+// XXX Almost all of the samples fit in 32kb
 #[derive(Debug, Clone)]
 pub struct View<T> {
     pub data: Arc<[T]>,
@@ -84,7 +85,7 @@ impl Oscillator {
         }
         let data = self.data.as_ref().unwrap();
 
-        // XXX Improve this algorithm e.g. windowed sinc
+        // XXX Improve this algorithm e.g. windowed sinc or gaussian
         let (index1, index2) = if self.looping {
             let end_loop_fp = (self.end_loop as i64) << FRAC_BITS;
             let loop_length = (self.end_loop - self.start_loop) as i64;
