@@ -116,7 +116,7 @@ impl Channel {
         } else if self.rpn == 1 {
             self.set_fine_tune_coarse(value);
         } else if self.rpn == 2 {
-            self.coarse_tune = (value as i16 - 64) as i16;
+            self.coarse_tune = value as i16 - 64;
         }
     }
 

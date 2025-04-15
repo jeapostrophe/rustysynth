@@ -9,6 +9,7 @@ pub struct View<T> {
     pub end: usize,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl<T> View<T> {
     pub fn len(&self) -> usize {
         self.end - self.start
@@ -50,6 +51,7 @@ const FRAC_UNIT: i64 = 1_i64 << FRAC_BITS;
 const FP_TO_SAMPLE: f32 = 1.0 / (32768 * FRAC_UNIT) as f32;
 
 impl Oscillator {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn start(
         &mut self,
         data: View<i16>,
@@ -70,7 +72,7 @@ impl Oscillator {
         self.tune = 0.01 * fine_tune as f32;
         self.sample_rate_ratio = sample_rate as f32 / crate::SAMPLE_RATE as f32;
         self.looping = self.loop_mode != LoopMode::NoLoop;
-        self.position_fp = (0 as i64) << FRAC_BITS;
+        self.position_fp = 0_i64 << FRAC_BITS;
     }
 
     pub(crate) fn release(&mut self) {
@@ -80,9 +82,7 @@ impl Oscillator {
     }
 
     pub(crate) fn render(&mut self, pitch: f32) -> Option<f32> {
-        if self.data.is_none() {
-            return None;
-        }
+        self.data.as_ref()?;
         let data = self.data.as_ref().unwrap();
 
         // XXX Improve this algorithm e.g. windowed sinc or gaussian
@@ -103,7 +103,7 @@ impl Oscillator {
             (index1, index2)
         } else {
             let index = (self.position_fp >> FRAC_BITS) as usize;
-            if index >= data.len() as usize {
+            if index >= data.len() {
                 return None;
             }
             (index, index + 1)

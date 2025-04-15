@@ -32,6 +32,7 @@ pub enum LoopMode {
 }
 
 #[derive(Debug, Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) enum EnvelopeStage {
     #[default]
     DELAY,

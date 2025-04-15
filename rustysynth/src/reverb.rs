@@ -31,11 +31,7 @@ impl<const N: usize> DelayLine<N> {
     /// Get index of back element.
     pub fn index_back(&self) -> usize {
         let i = self.pos + 1;
-        if i < N {
-            i
-        } else {
-            0
-        }
+        if i < N { i } else { 0 }
     }
 
     /// Read value at delay i
@@ -144,9 +140,10 @@ pub struct Reverb {
     one_pole_2: OnePole,
 }
 
+#[allow(dead_code)]
 impl Reverb {
     /// Contructor default reverb
-    pub fn reset(&mut self) -> () {
+    pub fn reset(&mut self) {
         *self = Reverb::default();
         self.bandwidth(0.9995);
         self.decay(0.85);
@@ -215,7 +212,7 @@ impl Reverb {
     /// Compute wet stereo output from dry mono input
     /// @param[ in] in      dry input sample
     /// @param[out] out1    wet output sample 1
-    /// @param[out] out2    wet output sample 2    
+    /// @param[out] out2    wet output sample 2
     pub fn render(&mut self, input: f32) -> (f32, f32) {
         let mut value = self.pre_delay.get_write_and_step(input * 0.5);
         value = self.one_pole.call(value);

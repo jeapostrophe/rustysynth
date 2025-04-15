@@ -185,9 +185,7 @@ impl Voice {
         let pitch = self.key as f32 + vib_pitch_change + mod_pitch_change + channel_pitch_change;
 
         let osc_output = self.oscillator.render(pitch);
-        if osc_output.is_none() {
-            return None;
-        }
+        osc_output?;
         let osc_output = osc_output.unwrap();
 
         if self.dynamic_cutoff {

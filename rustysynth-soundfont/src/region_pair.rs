@@ -108,7 +108,7 @@ impl Sound for RegionPair<'_> {
     }
 }
 
-impl<'a> RegionPair<'a> {
+impl RegionPair<'_> {
     fn gs(&self, i: usize) -> i32 {
         self.preset.gs[i] as i32 + self.instrument.gs[i] as i32
     }

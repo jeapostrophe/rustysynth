@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::{collections::VecDeque, io::Read};
 
 #[derive(Debug)]
@@ -58,15 +58,12 @@ impl MidiFile {
                         tempo_changes.push(TempoChange { time, us_per_beat });
                     }
                 }
-                match kind {
-                    midly::TrackEventKind::Midi { channel, message } => {
-                        track_evts.push_back(MidiEvent {
-                            time,
-                            ch: channel,
-                            msg: message,
-                        });
-                    }
-                    _ => {}
+                if let midly::TrackEventKind::Midi { channel, message } = kind {
+                    track_evts.push_back(MidiEvent {
+                        time,
+                        ch: channel,
+                        msg: message,
+                    });
                 }
             }
             all_evts.push(track_evts);

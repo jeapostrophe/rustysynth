@@ -1,9 +1,9 @@
+use crate::LoopMode;
 use crate::channel::Channel;
 use crate::oscillator::View;
 use crate::reverb::Reverb;
 use crate::soundfont_math::NON_AUDIBLE;
 use crate::voice::Voice;
-use crate::LoopMode;
 use anyhow::Result;
 
 pub trait Sound {
@@ -127,10 +127,11 @@ impl<Source: SoundSource, const CHANNELS: usize, const VOICES: usize>
         // XXX use a simpler way to do this like .iter().min_by()
         // Too many active voices...
         // Find one which has the lowest priority.
-        let mut lowest_priority = std::u8::MAX;
+        let mut lowest_priority = u8::MAX;
         for i in 0..voices.len() {
             let voice = &voices[i];
             let priority = voice.get_priority();
+            #[allow(clippy::comparison_chain)]
             if priority < lowest_priority {
                 lowest_priority = priority;
                 candidate = i;
